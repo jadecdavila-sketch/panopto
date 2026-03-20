@@ -9,7 +9,6 @@ import {
   listMindMaps,
 } from '../services/mockApi'
 import type { LearningAsset, AssetKPI, Citation, GenerationScope, FlashcardSet, Quiz, MindMap } from '../types/domain'
-import { useIsMobile } from '../hooks/useMediaQuery'
 import { useProcessingPoller } from '../hooks/useProcessingPoller'
 import { useToast } from '../context/ToastContext'
 import { Layers, ClipboardCheck, Network } from 'lucide-react'
@@ -29,18 +28,6 @@ import { ResizableDrawer } from '../components/ui/ResizableDrawer'
 /* ------------------------------------------------------------------ */
 /*  Icons                                                              */
 /* ------------------------------------------------------------------ */
-
-function BackIcon() {
-  return (
-    <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-      <path
-        fillRule="evenodd"
-        d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z"
-        clipRule="evenodd"
-      />
-    </svg>
-  )
-}
 
 function TypeIcon({ type }: { type: LearningAsset['type'] }) {
   const cls = 'h-6 w-6'
@@ -108,7 +95,6 @@ export default function AssetPage() {
   const { assetId } = useParams<{ assetId: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const isMobile = useIsMobile()
   const toast = useToast()
 
   // Context from navigation (e.g. coming from a study set)
