@@ -26,6 +26,8 @@ import { KnowledgeTouchpointCard } from '../components/asset/KnowledgeTouchpoint
 import { AssetCard } from '../components/asset/AssetCard'
 import { Modal } from '../components/ui/Modal'
 import { GenerationModal } from '../components/asset/GenerationModal'
+import { AiChatFab } from '../components/chat/AiChatFab'
+import { AiChatPanel } from '../components/chat/AiChatPanel'
 
 /* ------------------------------------------------------------------ */
 /*  Icons                                                              */
@@ -160,6 +162,9 @@ export default function StudySetPage() {
   const [assetsExpanded, setAssetsExpanded] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
 
+  // Chat state (open by default)
+  const [chatOpen, setChatOpen] = useState(true)
+
   // Generation modal state
   const [genModalOpen, setGenModalOpen] = useState(false)
   const [genScope, setGenScope] = useState<GenerationScope | null>(null)
@@ -285,7 +290,10 @@ export default function StudySetPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
+    <div className="flex h-full">
+      {/* Main content */}
+      <div className="flex-1 overflow-y-auto p-6">
+      <div className="mx-auto max-w-5xl">
       {/* Header */}
       <div className="rounded-lg border border-border bg-background p-6">
         {/* Breadcrumb */}
@@ -539,6 +547,18 @@ export default function StudySetPage() {
           assets={setAssets}
         />
       )}
+
+      </div>
+      </div>
+
+      {/* Folio AI */}
+      {!chatOpen && <AiChatFab onClick={() => setChatOpen(true)} />}
+      <AiChatPanel
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+        assetTitle={studySet.name}
+        knowledgeTouchpoints={synthesisAsset?.knowledgeTouchpoints ?? []}
+      />
     </div>
   )
 }
