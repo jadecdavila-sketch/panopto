@@ -15,6 +15,23 @@ import { InlineError } from '../components/ui/InlineError'
 import { CreateTopicDialog } from '../components/topic/CreateTopicDialog'
 import { AddAssetModal } from '../components/asset/AddAssetModal'
 
+function DevDataToggle() {
+  const isSeeded = localStorage.getItem('mock:seeded') === '1'
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        localStorage.setItem('mock:seeded', isSeeded ? '0' : '1')
+        window.location.reload()
+      }}
+      className="fixed bottom-3 right-3 z-50 cursor-pointer rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-text-secondary shadow-md hover:bg-background"
+      title={isSeeded ? 'Clear sample data' : 'Load sample data'}
+    >
+      {isSeeded ? '⚪ Clear data' : '🟢 Load sample data'}
+    </button>
+  )
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate()
   const [topics, setTopics] = useState<Topic[]>([])
@@ -81,6 +98,10 @@ export default function DashboardPage() {
         <EmptyDashboard
           onCreateTopic={() => setShowCreateTopic(true)}
           onAddAsset={() => setShowAddAsset(true)}
+          onLoadSampleData={() => {
+            localStorage.setItem('mock:seeded', '1')
+            window.location.reload()
+          }}
         />
         <CreateTopicDialog
           isOpen={showCreateTopic}
@@ -125,21 +146,8 @@ export default function DashboardPage() {
       {dashTab === 'folios' && <TopicsSection />}
       {dashTab === 'materials' && <AssetsTable />}
 
-      {/* Dev toggle: empty state */}
-      <button
-        type="button"
-        onClick={() => {
-          const current = localStorage.getItem('mock:empty') === '1'
-          localStorage.setItem('mock:empty', current ? '0' : '1')
-          window.location.reload()
-        }}
-        className="fixed bottom-3 right-3 z-50 rounded-full bg-surface border border-border px-3 py-1.5 text-xs text-text-secondary shadow-md hover:bg-background cursor-pointer"
-        title="Toggle empty/seeded mock data"
-      >
-        {localStorage.getItem('mock:empty') === '1'
-          ? '🟢 Load data'
-          : '⚪ Empty state'}
-      </button>
+      {/* Dev toggle: clear sample data */}
+      <DevDataToggle />
     </div>
   )
 }

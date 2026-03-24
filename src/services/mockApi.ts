@@ -56,8 +56,9 @@ const clone = <T>(v: T): T => structuredClone(v)
 /*  Mutable in-memory store                                            */
 /* ------------------------------------------------------------------ */
 
-// Check for empty-state dev mode via localStorage toggle
-const isEmpty = typeof window !== 'undefined' && localStorage.getItem('mock:empty') === '1'
+// Default to empty state so new users land on EmptyDashboard after onboarding.
+// Dev toggle sets mock:seeded to '1' to load sample data.
+const isEmpty = typeof window === 'undefined' || localStorage.getItem('mock:seeded') !== '1'
 
 // Pre-seed with demo data so library and dashboard show content on load
 const topics: Topic[] = isEmpty ? [] : clone(initialTopics)

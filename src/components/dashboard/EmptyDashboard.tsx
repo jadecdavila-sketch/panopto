@@ -4,9 +4,10 @@ import panoptoLogo from '../../assets/panopto-logo.svg'
 interface EmptyDashboardProps {
   onCreateTopic: () => void
   onAddAsset: () => void
+  onLoadSampleData?: () => void
 }
 
-export function EmptyDashboard({ onCreateTopic, onAddAsset }: EmptyDashboardProps) {
+export function EmptyDashboard({ onCreateTopic, onAddAsset, onLoadSampleData }: EmptyDashboardProps) {
   return (
     <div
       className="flex h-full flex-1 flex-col items-center justify-center px-6 py-16"
@@ -73,11 +74,21 @@ export function EmptyDashboard({ onCreateTopic, onAddAsset }: EmptyDashboardProp
               />
             </svg>
           }
-          title="Add a Learning Material"
+          title="Add Learning Materials"
           description="Import a Panopto video or upload a file to get started"
           onClick={onAddAsset}
         />
       </div>
+
+      {onLoadSampleData && (
+        <button
+          type="button"
+          onClick={onLoadSampleData}
+          className="mt-4 w-full max-w-2xl cursor-pointer rounded-xl border border-border bg-background px-6 py-3 text-sm font-medium text-text-secondary transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          Load sample data
+        </button>
+      )}
     </div>
   )
 }
