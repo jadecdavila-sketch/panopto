@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>University Review : University Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --teal:        #337D9B;
+    --teal-light:  #4097B5;
+    --teal-dark:   #275f76;
+    --navy:        #1a3a4a;
+    --bg:          #F9FBFD;
+    --white:       #FFFFFF;
+    --text:        #1a1a1a;
+    --muted:       #626262;
+    --border:      #e4e9ed;
+    --hover-bg:    rgba(0,0,0,0.04);
+    --font:        'Albert Sans', sans-serif;
+  }
+
+  html { font-size: 16px; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  a { text-decoration: none; color: inherit; }
+
+  /* ── HEADER ─────────────────────────────────────────────── */
+  .site-header {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* Logo */
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+  }
+
+  .logo-icon {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+
+  .logo-text {
+    font-size: 17px;
+    font-weight: 400;
+    color: var(--teal);
+    letter-spacing: -0.01em;
+  }
+
+  .logo-text strong {
+    font-weight: 700;
+    color: var(--navy);
+  }
+
+  /* Header right */
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f0f4f7;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 7px 16px;
+    font-size: 14px;
+    color: var(--muted);
+    cursor: text;
+    min-width: 200px;
+  }
+
+  .search-bar svg { flex-shrink: 0; }
+
+  .btn-signin {
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 18px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-signin:hover { background: var(--bg); }
+
+  .btn-signup {
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--white);
+    background: var(--teal);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 18px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-signup:hover { background: var(--teal-dark); }
+
+  /* ── NAV ─────────────────────────────────────────────────── */
+  .site-nav {
+    border-top: 1px solid var(--border);
+  }
+
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 14px 20px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s;
+    border-bottom: 2px solid transparent;
+  }
+
+  .nav-item:hover { background: var(--hover-bg); }
+
+  .nav-item svg { opacity: 0.5; }
+
+  /* ── BREADCRUMB BAR ──────────────────────────────────────── */
+  .breadcrumb-bar {
+    background: var(--teal);
+    padding: 12px 32px;
+  }
+
+  .breadcrumb-inner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 1400px;
+    margin: 0 auto;
+    font-size: 13px;
+    color: rgba(255,255,255,0.8);
+  }
+
+  .breadcrumb-inner a { color: rgba(255,255,255,0.8); }
+  .breadcrumb-inner a:hover { color: white; }
+
+  .breadcrumb-sep { opacity: 0.5; font-size: 12px; }
+
+  .breadcrumb-current {
+    font-weight: 700;
+    color: white;
+  }
+
+  .breadcrumb-home {
+    display: flex;
+    align-items: center;
+  }
+
+  /* ── MAIN CONTENT ────────────────────────────────────────── */
+  .main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 32px 48px;
+  }
+
+  /* ── HERO ROW (video + chat side by side) ──────────────── */
+  .hero-row {
+    display: flex;
+    gap: 0;
+    margin: 0 -32px;
+  }
+
+  .hero-video-col {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* ── FOLIO AI CHAT PANEL ───────────────────────────────── */
+  .folio-chat {
+    width: 340px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid #E8E8E8;
+    border-bottom: 1px solid #D0D0D0;
+    background: #FFFFFF;
+    font-family: 'Inter Tight', 'Albert Sans', sans-serif;
+  }
+
+  /* ── FOLIO FAB (floating button to reopen chat) ────────── */
+  .folio-fab {
+    display: none;
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 40;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    background: #004232;
+    color: white;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    transition: box-shadow 0.15s, transform 0.15s;
+  }
+  .folio-fab:hover {
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+    transform: scale(1.05);
+  }
+
+  .folio-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #E8E8E8;
+  }
+
+  .folio-chat-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #004232;
+  }
+
+  .folio-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6B6B6B;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    padding: 0;
+  }
+  .folio-close-btn:hover { background: #F5F5F5; }
+
+  .folio-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .folio-welcome {
+    background: #F5F5F5;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #6B6B6B;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .folio-msg-row {
+    display: flex;
+    margin-bottom: 12px;
+  }
+
+  .folio-msg-row.user { justify-content: flex-end; }
+  .folio-msg-row.assistant { justify-content: flex-start; }
+
+  .folio-msg-bubble {
+    max-width: 85%;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #1A1A1A;
+  }
+
+  .folio-msg-row.user .folio-msg-bubble {
+    background: rgba(42, 194, 113, 0.15);
+  }
+
+  .folio-msg-row.assistant .folio-msg-bubble {
+    background: #F5F5F5;
+  }
+
+  .folio-typing {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 12px;
+  }
+
+  .folio-typing-bubble {
+    background: #F5F5F5;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #6B6B6B;
+    display: flex;
+    gap: 4px;
+  }
+
+  .folio-typing-dot {
+    display: inline-block;
+    animation: folio-bounce 1.4s infinite ease-in-out;
+  }
+  .folio-typing-dot:nth-child(2) { animation-delay: 0.15s; }
+  .folio-typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes folio-bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-4px); }
+  }
+
+  .folio-input-area {
+    border-top: 1px solid #E8E8E8;
+    padding: 12px 16px;
+  }
+
+  .folio-input-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .folio-input {
+    flex: 1;
+    border: 1px solid #E8E8E8;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    color: #1A1A1A;
+    background: #FFFFFF;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .folio-input::placeholder { color: #A0A0A0; }
+  .folio-input:focus {
+    border-color: #2AC271;
+    box-shadow: 0 0 0 1px #2AC271;
+  }
+
+  .folio-send-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 9999px;
+    background: #2AC271;
+    color: #1A1A1A;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .folio-send-btn:hover { background: #24A860; }
+  .folio-send-btn:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  /* ── VIDEO PLAYER ────────────────────────────────────────── */
+  .video-section {
+    padding: 0;
+  }
+
+  .video-player {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #000;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .video-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .video-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.15);
+    transition: background 0.2s;
+  }
+
+  .video-overlay:hover { background: rgba(0,0,0,0.25); }
+
+  .play-btn {
+    width: 64px;
+    height: 64px;
+    background: rgba(0,0,0,0.6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, background 0.2s;
+  }
+
+  .video-overlay:hover .play-btn {
+    transform: scale(1.1);
+    background: rgba(0,0,0,0.75);
+  }
+
+  .video-watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 32px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.8);
+    text-align: center;
+    pointer-events: none;
+    font-style: italic;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    margin-top: -30px;
+  }
+
+  .video-controls {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.6));
+    padding: 20px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .ctrl-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: white;
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .ctrl-btn:hover { background: rgba(255,255,255,0.15); }
+
+  .progress-bar {
+    flex: 1;
+    height: 3px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+    position: relative;
+    cursor: pointer;
+  }
+  .progress-fill {
+    width: 0%;
+    height: 100%;
+    background: white;
+    border-radius: 2px;
+  }
+
+  .ctrl-time {
+    font-size: 12px;
+    color: white;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── VIDEO LIST ───────────────────────────────────────────── */
+  .sidebar {
+    background: var(--white);
+    margin-top: 0;
+  }
+
+  .sidebar-header {
+    display: none;
+  }
+
+  .video-list { list-style: none; }
+
+  .video-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 0;
+    cursor: pointer;
+    transition: background 0.12s;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+
+  .video-item:hover .video-title { color: var(--teal); }
+
+  .video-item.active .video-title { color: var(--teal-dark); font-weight: 600; }
+
+  .thumb-wrap {
+    position: relative;
+    flex-shrink: 0;
+    width: 180px;
+    height: 102px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #1a2530;
+  }
+
+  .thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .thumb-duration {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: rgba(0,0,0,0.75);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .video-info { flex: 1; min-width: 0; }
+
+  .video-title {
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--text);
+    line-height: 1.4;
+    transition: color 0.15s;
+  }
+
+  /* ── FOOTER ──────────────────────────────────────────────── */
+  .site-footer {
+    border-top: 1px solid var(--border);
+    padding: 20px 32px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    background: var(--white);
+    margin-top: 0;
+  }
+
+  /* ── PLACEHOLDER THUMB COLORS ────────────────────────────── */
+  .thumb-1 { background: linear-gradient(135deg, #1a3a5c, #2d6a8a); }
+  .thumb-2 { background: linear-gradient(135deg, #2d5a2d, #4a8a4a); }
+  .thumb-3 { background: linear-gradient(135deg, #5a2d2d, #8a4a2d); }
+  .thumb-4 { background: linear-gradient(135deg, #2d2d5a, #4a3a8a); }
+  .thumb-5 { background: linear-gradient(135deg, #5a4a2d, #8a7a3a); }
+  .thumb-6 { background: linear-gradient(135deg, #1a4a5a, #2d7a6a); }
+  .thumb-7 { background: linear-gradient(135deg, #4a2d5a, #7a3a8a); }
+  .thumb-8 { background: linear-gradient(135deg, #3a4a2d, #5a7a3a); }
+  .thumb-9 { background: linear-gradient(135deg, #5a3a2d, #8a5a2d); }
+  .thumb-10 { background: linear-gradient(135deg, #2d4a5a, #3a6a8a); }
+
+</style>
+</head>
+<body>
+
+<!-- SITE HEADER -->
+<header class="site-header">
+  <div class="header-top">
+    <!-- Logo -->
+    <div class="logo">
+      <svg class="logo-icon" viewBox="0 0 44 44" fill="none">
+        <rect width="44" height="44" rx="6" fill="#1a3a5c"/>
+        <!-- Shield shape -->
+        <path d="M22 8L10 13v10c0 8 5.5 13.5 12 16 6.5-2.5 12-8 12-16V13L22 8z" fill="white" opacity="0.15"/>
+        <path d="M22 10L12 14.5v9C12 30 16.5 34.5 22 37c5.5-2.5 10-7 10-13.5v-9L22 10z" fill="none" stroke="white" stroke-width="1.5"/>
+        <!-- Book icon inside -->
+        <rect x="16" y="18" width="12" height="9" rx="1" fill="none" stroke="#4097B5" stroke-width="1.5"/>
+        <line x1="22" y1="18" x2="22" y2="27" stroke="#4097B5" stroke-width="1"/>
+        <line x1="16" y1="21" x2="22" y2="21" stroke="#4097B5" stroke-width="1"/>
+        <line x1="16" y1="24" x2="22" y2="24" stroke="#4097B5" stroke-width="1"/>
+      </svg>
+      <span class="logo-text"><strong>COLLEGE</strong> University</span>
+    </div>
+
+    <!-- Right side -->
+    <div class="header-right">
+      <div class="search-bar">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <circle cx="6" cy="6" r="4.5" stroke="#626262" stroke-width="1.5"/>
+          <path d="M9.5 9.5L12.5 12.5" stroke="#626262" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Search
+      </div>
+      <button class="btn-signin">Sign in</button>
+      <button class="btn-signup">Sign up</button>
+    </div>
+  </div>
+
+  <!-- Secondary nav -->
+  <nav class="site-nav">
+    <div class="nav-inner">
+      <div class="nav-item">About Us</div>
+      <div class="nav-item">
+        Student Life
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="nav-item">
+        Athletics
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="nav-item">Research</div>
+    </div>
+  </nav>
+</header>
+
+<!-- BREADCRUMB -->
+<div class="breadcrumb-bar">
+  <div class="breadcrumb-inner">
+    <span class="breadcrumb-home">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M2 6.5L7 2L12 6.5V12H9V9H5V12H2V6.5Z" fill="white" opacity="0.8"/>
+      </svg>
+    </span>
+    <span class="breadcrumb-sep">›</span>
+    <a href="#">About Us</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="#">Featured Campus Cont…</a>
+    <span class="breadcrumb-sep">›</span>
+    <span class="breadcrumb-current">University Review</span>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- HERO ROW: VIDEO + FOLIO AI CHAT -->
+  <div class="hero-row">
+  <div class="hero-video-col">
+  <div class="video-section">
+    <div class="video-player" id="player">
+      <!-- Beautiful campus image placeholder -->
+      <div style="width:100%;height:100%;background:linear-gradient(160deg,#0d2137 0%,#1a4060 35%,#2a6a5a 65%,#1a3a2a 100%);position:relative;overflow:hidden;">
+        <!-- Sky gradient -->
+        <div style="position:absolute;top:0;left:0;right:0;height:55%;background:linear-gradient(180deg,#1a2540 0%,#2d4a70 30%,#c47a5a 70%,#e8956a 100%);"></div>
+        <!-- Tree silhouettes -->
+        <div style="position:absolute;bottom:0;left:0;right:0;height:50%;background:linear-gradient(180deg,transparent 0%,#0d2a1a 40%,#0a1f12 100%);"></div>
+        <!-- Sculpture hint -->
+        <div style="position:absolute;bottom:15%;left:35%;width:120px;height:140px;border-radius:50%;border:3px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);"></div>
+        <!-- Building -->
+        <div style="position:absolute;bottom:25%;right:10%;width:180px;height:80px;background:rgba(200,180,150,0.3);border-radius:4px;"></div>
+        <!-- Stars -->
+        <div style="position:absolute;top:10%;left:20%;width:2px;height:2px;background:white;border-radius:50%;opacity:0.6;"></div>
+        <div style="position:absolute;top:15%;left:60%;width:1px;height:1px;background:white;border-radius:50%;opacity:0.8;"></div>
+        <div style="position:absolute;top:8%;left:80%;width:2px;height:2px;background:white;border-radius:50%;opacity:0.5;"></div>
+      </div>
+
+      <div class="video-overlay" onclick="togglePlay()">
+        <div style="position:absolute;top:38%;left:50%;transform:translateX(-50%);font-size:26px;font-weight:300;color:rgba(255,255,255,0.85);font-style:italic;letter-spacing:-0.02em;text-shadow:0 2px 12px rgba(0,0,0,0.5);white-space:nowrap;">Wonderful things happen here.</div>
+        <div class="play-btn" id="playBtn">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <path d="M10 7L22 14L10 21V7Z" fill="white"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="video-controls">
+        <button class="ctrl-btn" onclick="togglePlay()">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="white">
+            <path d="M6 4L15 9L6 14V4Z"/>
+          </svg>
+        </button>
+        <button class="ctrl-btn">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="white">
+            <path d="M9 6V3L5 6.5L9 10V7a4.5 4.5 0 110 9 4.5 4.5 0 01-4.5-4.5H3A6 6 0 109 6z"/>
+          </svg>
+        </button>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress"></div>
+        </div>
+        <span class="ctrl-time">0:00 / 2:05</span>
+        <button class="ctrl-btn">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="white">
+            <path d="M2 13h3v3l4-4-4-4v3H2v2zm10-2l4 4-4 4v-3H9v-2h3v-3zm0-9v3h3v2h-3v3l-4-4 4-4zm-7 0l4 4-4 4V9H2V7h3V4z"/>
+          </svg>
+        </button>
+        <button class="ctrl-btn">
+          <svg width="16" height="16" viewBox="0 0 18 18" fill="white">
+            <rect x="1" y="1" width="16" height="16" rx="2" fill="none" stroke="white" stroke-width="1.5"/>
+            <path d="M5 5h8v8H5z" fill="white" opacity="0.3"/>
+          </svg>
+        </button>
+        <button class="ctrl-btn">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="white">
+            <path d="M2 2h6v6H2zM10 2h6v6h-6zM2 10h6v6H2zM10 10h6v6h-6z"/>
+          </svg>
+        </button>
+        <button class="ctrl-btn">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="white" stroke-width="1.5">
+            <rect x="2" y="4" width="14" height="10" rx="1"/>
+            <path d="M5 14l2 2M13 14l-2 2"/>
+          </svg>
+        </button>
+        <button class="ctrl-btn">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="white" stroke-width="1.5">
+            <polyline points="3,3 3,7 7,7"/><polyline points="15,3 15,7 11,7"/>
+            <polyline points="3,15 3,11 7,11"/><polyline points="15,15 15,11 11,11"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  </div><!-- /.hero-video-col -->
+
+  <!-- FOLIO AI CHAT PANEL -->
+  <aside class="folio-chat" id="folioChat" aria-label="Folio AI chat panel">
+    <!-- Header -->
+    <div class="folio-chat-header">
+      <span class="folio-chat-title">
+        <svg width="18" height="19" viewBox="0 0 29 31" fill="none"><g clip-path="url(#plogo)"><path fill-rule="evenodd" clip-rule="evenodd" d="M28.1826 19.5169C27.9115 18.5208 27.0154 17.5393 26.0741 17.0046C24.794 16.2795 23.9732 15.818 22.678 15.0929L18.2276 12.5953L11.1718 8.64005V5.00711C11.1718 3.24924 11.7591 1.81364 13.3028 0.802867C13.845 0.502564 14.2592 0.275505 14.8917 0.129016C16.089 -0.149314 17.3616 0.0264735 18.4309 0.619755C20.1713 1.58407 21.9078 2.55964 23.6404 3.53304C24.3293 3.92003 25.0175 4.30669 25.7052 4.69216C26.4582 5.10965 27.0832 5.71758 27.5199 6.44271C27.9416 7.14585 28.1826 7.95887 28.1826 8.83048V12.0093V19.5169ZM3.53922 23.7908C4.74406 24.0984 6.03926 23.9446 7.11609 23.344L10.7607 21.3005L10.7532 8.39476C10.7532 7.88525 10.755 7.44645 10.7568 7.02924C10.76 6.25314 10.763 5.55107 10.7532 4.60801C10.7532 3.00395 11.461 1.97121 11.9656 1.48779C11.3469 1.8346 10.6453 2.2275 9.91305 2.63759C8.31029 3.53517 6.5598 4.51548 5.21093 5.27454L2.16118 6.98114C1.49852 7.40596 0.948812 7.98459 0.572299 8.65844C0.203317 9.31764 0 10.0721 0 10.8704V19.3082C0 20.1578 0.233438 20.9562 0.647602 21.6374C1.28014 22.7068 2.31932 23.4832 3.53922 23.7908ZM25.0729 16.9324L22.2265 15.3357L10.7203 21.7959L7.17353 23.7881C6.02893 24.4327 4.53794 24.44 3.88281 24.2715L13.4839 29.6623C14.2143 30.0652 15.0201 30.2703 15.8634 30.2703C16.7068 30.2703 17.5276 30.0579 18.2656 29.655C20.0948 28.6468 21.9199 27.6187 23.744 26.5913C24.3978 26.223 25.0518 25.8546 25.7055 25.4874C26.4359 25.0699 27.0459 24.4766 27.4676 23.7661C27.8742 23.085 28.1076 22.2939 28.1076 21.4663C28.1076 20.5873 27.9194 19.789 27.4676 19.0199C26.835 17.9359 26.1422 17.5257 25.0729 16.9324Z" fill="#004232"/></g><defs><clipPath id="plogo"><rect width="29" height="31" fill="white"/></clipPath></defs></svg>
+        Panopto Folio AI
+      </span>
+      <button type="button" class="folio-close-btn" aria-label="Close chat panel" onclick="toggleFolioChat()">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/></svg>
+      </button>
+    </div>
+
+    <!-- Messages -->
+    <div class="folio-messages" id="folioMessages" role="log" aria-label="Chat messages">
+      <div class="folio-welcome">
+        Ask me anything about <strong>University Review</strong>. I can help you understand the key concepts.
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="folio-input-area" aria-label="Chat input area">
+      <div class="folio-input-row">
+        <input
+          type="text"
+          id="folioInput"
+          class="folio-input"
+          placeholder="Ask Folio AI..."
+          aria-label="Chat message input"
+          autocomplete="off"
+        />
+        <button type="button" class="folio-send-btn" id="folioSendBtn" aria-label="Send message" disabled>
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+  </div><!-- /.hero-row -->
+
+  <!-- VIDEO TITLE (constrained to video column width) -->
+  <div style="padding: 20px 0 8px; font-size: 22px; font-weight: 600; color: var(--text); letter-spacing: -0.02em;">University Review</div>
+
+  <!-- VIDEO LIST -->
+  <aside class="sidebar" aria-label="Video collection">
+    <div class="sidebar-header">In this collection</div>
+    <ul class="video-list">
+
+      <li class="video-item active">
+        <div class="thumb-wrap thumb-1">
+          <div style="width:100%;height:100%;background:linear-gradient(160deg,#0d2137,#2a6a5a);"></div>
+          <span class="thumb-duration">2:05</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">University Review</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-2">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#1a4a2a,#3a8a4a);"></div>
+          <span class="thumb-duration">0:14</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">What makes us different</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-3">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#2d1a3a,#5a3a6a);"></div>
+          <span class="thumb-duration">2:34</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">Discover Your Campus!</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-4">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#1a3a5c,#2d6a8a);"></div>
+          <span class="thumb-duration">12:44</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">Student Involvement Fair</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-5">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#3a2a1a,#6a4a2a);"></div>
+          <span class="thumb-duration">14:43</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">Game Day!</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-6">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#1a3a3a,#2a6a5a);"></div>
+          <span class="thumb-duration">6:54</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">A Walk Through Campus</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-7">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#1a2a3a,#3a5a7a);"></div>
+          <span class="thumb-duration">2:19</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">Campus Garden</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-8">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#2a2a1a,#4a4a2a);"></div>
+          <span class="thumb-duration">2:29</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">Professor Shows Off His Latest Research on the Anatomy of a Bee</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-9">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#1a1a2a,#2a2a4a);"></div>
+          <span class="thumb-duration">9:46</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">Large and Small Classroom Sizes</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-10">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#2a1a1a,#5a2a2a);"></div>
+          <span class="thumb-duration">14:43</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">Dining Options</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-1">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#1a2a1a,#3a5a3a);"></div>
+          <span class="thumb-duration">2:23</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">At the Forefront of Medical Research and Education</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-2">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#2a1a2a,#5a3a5a);"></div>
+          <span class="thumb-duration">3:58</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">Imparting Technical Skills and Inspire Innovation</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-3">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#1a2a2a,#2a5a5a);"></div>
+          <span class="thumb-duration">1:23</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">The Culminating Moments of the MBA Journey</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-4">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#2a2a1a,#5a5a2a);"></div>
+          <span class="thumb-duration">1:26</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">Demonstrating Renaissance Sculpting Techniques</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-5">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#1a1a3a,#2a2a6a);"></div>
+          <span class="thumb-duration">2:49</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">A Legacy of Innovation and Excellence in Engineering</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-6">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#2a1a1a,#6a2a2a);"></div>
+          <span class="thumb-duration">1:07</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">The Foundational Concept of Algebra</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-7">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#1a2a3a,#2a4a6a);"></div>
+          <span class="thumb-duration">0:32</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">Hydrolysis Explanation</div>
+        </div>
+      </li>
+
+      <li class="video-item">
+        <div class="thumb-wrap thumb-8">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#2a3a1a,#4a6a2a);"></div>
+          <span class="thumb-duration">54:56</span>
+        </div>
+        <div class="video-info">
+          <div class="video-title">Student Government Meeting</div>
+        </div>
+      </li>
+
+    </ul>
+  </aside>
+
+</div>
+
+<!-- FOLIO FAB -->
+<button type="button" class="folio-fab" id="folioFab" aria-label="Open AI chat" onclick="toggleFolioChat()">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M9.937 3.158A1 1 0 0111.9 3.1l.472 1.726a5 5 0 003.53 3.53l1.727.473a1 1 0 01.058 1.963l-1.726.472a5 5 0 00-3.53 3.53l-.473 1.727a1 1 0 01-1.963.058l-.472-1.726a5 5 0 00-3.53-3.53l-1.727-.473a1 1 0 01-.058-1.963l1.726-.472a5 5 0 003.53-3.53zM18.25 14.5a.75.75 0 011.472-.206l.211.77a3 3 0 002.12 2.12l.77.21a.75.75 0 01.035 1.472l-.77.211a3 3 0 00-2.12 2.12l-.21.77a.75.75 0 01-1.472.035l-.211-.77a3 3 0 00-2.12-2.12l-.77-.21a.75.75 0 01-.035-1.472l.77-.211a3 3 0 002.12-2.12z"/></svg>
+</button>
+
+<!-- FOOTER -->
+<footer class="site-footer">
+  © 2026 All rights reserved.
+</footer>
+
+<script>
+  // Simple video list interaction
+  document.querySelectorAll('.video-item').forEach((item, i) => {
+    item.addEventListener('click', function() {
+      document.querySelectorAll('.video-item').forEach(v => v.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  // ── FOLIO AI CHAT ──────────────────────────────────────
+  const folioMessages = document.getElementById('folioMessages');
+  const folioInput = document.getElementById('folioInput');
+  const folioSendBtn = document.getElementById('folioSendBtn');
+  let folioTypingTimer = null;
+
+  // Mock knowledge touchpoints for this video
+  const videoTopics = [
+    { heading: 'Campus Life', body: 'The university offers a vibrant campus life with over 200 student organizations, state-of-the-art recreational facilities, and a diverse community of learners from all 50 states and over 80 countries.' },
+    { heading: 'Academic Programs', body: 'With over 150 undergraduate and 100 graduate programs, our university provides rigorous academic training across the sciences, humanities, engineering, business, and the arts.' },
+    { heading: 'Research Excellence', body: 'Our faculty and students contribute to groundbreaking research across disciplines, with over $500 million in annual research funding and partnerships with leading institutions worldwide.' },
+    { heading: 'Student Support', body: 'From academic advising and tutoring centers to career services and mental health resources, the university is committed to supporting every student\'s success throughout their journey.' },
+    { heading: 'Athletics', body: 'Our Division I athletics program features 20 varsity sports and a proud tradition of competition, sportsmanship, and school spirit that unites the entire campus community.' },
+    { heading: 'Dining and Housing', body: 'Students enjoy a variety of on-campus dining options with diverse cuisines, alongside modern residence halls designed to foster community and provide comfortable living spaces.' },
+  ];
+
+  function findRelevantTopic(text) {
+    const lower = text.toLowerCase();
+    let best = null;
+    let bestScore = 0;
+    videoTopics.forEach(topic => {
+      const words = topic.heading.toLowerCase().split(/\s+/);
+      const score = words.filter(w => w.length > 3 && lower.includes(w)).length;
+      if (score > bestScore) { best = topic; bestScore = score; }
+    });
+    if (best) return best;
+    return videoTopics[Math.floor(Math.random() * videoTopics.length)];
+  }
+
+  function buildFolioResponse(text) {
+    const topic = findRelevantTopic(text);
+    return 'Based on the material about "' + topic.heading + '", ' + topic.body;
+  }
+
+  function addFolioMessage(role, content) {
+    const row = document.createElement('div');
+    row.className = 'folio-msg-row ' + role;
+    const bubble = document.createElement('div');
+    bubble.className = 'folio-msg-bubble';
+    bubble.textContent = content;
+    row.appendChild(bubble);
+    folioMessages.appendChild(row);
+    folioMessages.scrollTop = folioMessages.scrollHeight;
+  }
+
+  function showTypingIndicator() {
+    const el = document.createElement('div');
+    el.className = 'folio-typing';
+    el.id = 'folioTyping';
+    el.innerHTML = '<div class="folio-typing-bubble" aria-label="AI is typing"><span class="folio-typing-dot">.</span><span class="folio-typing-dot">.</span><span class="folio-typing-dot">.</span></div>';
+    folioMessages.appendChild(el);
+    folioMessages.scrollTop = folioMessages.scrollHeight;
+  }
+
+  function removeTypingIndicator() {
+    const el = document.getElementById('folioTyping');
+    if (el) el.remove();
+  }
+
+  function sendFolioMessage() {
+    const text = folioInput.value.trim();
+    if (!text) return;
+
+    addFolioMessage('user', text);
+    folioInput.value = '';
+    folioSendBtn.disabled = true;
+
+    showTypingIndicator();
+
+    const delay = 1000 + Math.random() * 1000;
+    folioTypingTimer = setTimeout(() => {
+      removeTypingIndicator();
+      addFolioMessage('assistant', buildFolioResponse(text));
+    }, delay);
+  }
+
+  folioInput.addEventListener('input', () => {
+    folioSendBtn.disabled = !folioInput.value.trim();
+  });
+
+  folioInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendFolioMessage();
+    }
+  });
+
+  folioSendBtn.addEventListener('click', sendFolioMessage);
+
+  function toggleFolioChat() {
+    const chat = document.getElementById('folioChat');
+    const fab = document.getElementById('folioFab');
+    const isOpen = chat.style.display !== 'none';
+    chat.style.display = isOpen ? 'none' : 'flex';
+    fab.style.display = isOpen ? 'flex' : 'none';
+    if (!isOpen) {
+      setTimeout(() => folioInput.focus(), 200);
+    }
+  }
+
+  // Play button toggle
+  function togglePlay() {
+    const btn = document.getElementById('playBtn');
+    const overlay = document.querySelector('.video-overlay');
+    const isPlaying = btn.dataset.playing === 'true';
+
+    if (isPlaying) {
+      btn.dataset.playing = 'false';
+      btn.innerHTML = '<svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M10 7L22 14L10 21V7Z" fill="white"/></svg>';
+    } else {
+      btn.dataset.playing = 'true';
+      btn.innerHTML = '<svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="6" y="5" width="5" height="18" rx="1" fill="white"/><rect x="17" y="5" width="5" height="18" rx="1" fill="white"/></svg>';
+      // Simulate progress
+      let pct = 0;
+      const prog = document.getElementById('progress');
+      const interval = setInterval(() => {
+        if (btn.dataset.playing !== 'true') { clearInterval(interval); return; }
+        pct = Math.min(pct + 0.3, 100);
+        prog.style.width = pct + '%';
+        if (pct >= 100) clearInterval(interval);
+      }, 100);
+    }
+  }
+</script>
+
+</body>
+</html>
