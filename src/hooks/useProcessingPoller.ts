@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { advanceProcessingStatus } from '../services/mockApi'
 import type { ProcessingStatus } from '../types/domain'
 
@@ -29,6 +29,12 @@ export function useProcessingPoller({
 
   const resolveIds = useCallback((): string[] => {
     return typeof assetIds === 'function' ? assetIds() : assetIds
+  }, [assetIds])
+
+  // Stable key for the resolved IDs to use as a dependency
+  const idsKey = useMemo(() => {
+    const ids = typeof assetIds === 'function' ? assetIds() : assetIds
+    return ids.join(',')
   }, [assetIds])
 
   const clearPoller = useCallback(() => {
@@ -96,7 +102,13 @@ export function useProcessingPoller({
 
     const ids = resolveIds()
     if (!enabled || ids.length === 0) {
-      clearPoller()
+      // Clear interval without triggering a state update during the sync phase
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      // Defer state update to avoid sync setState in effect
+      queueMicrotask(() => setIsPolling(false))
       return
     }
 
@@ -107,20 +119,29 @@ export function useProcessingPoller({
     })
 
     if (allTerminal) {
-      clearPoller()
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      queueMicrotask(() => setIsPolling(false))
       return
     }
 
     if (intervalRef.current === null) {
-      start()
+      // Start polling — defer initial poll and state update to avoid sync setState in effect
+      manualStop.current = false
+      intervalRef.current = setInterval(poll, POLL_INTERVAL_MS)
+      setTimeout(poll, 0)
+      queueMicrotask(() => setIsPolling(true))
     }
 
     return () => {
-      clearPoller()
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
     }
-    // We intentionally only react to enabled and the resolved IDs changing
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, JSON.stringify(resolveIds())])
+  }, [enabled, idsKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup on unmount
   useEffect(() => {

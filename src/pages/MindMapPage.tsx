@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { usePageTitle } from '../hooks/usePageTitle'
 import type { MindMap, MindMapNode, KnowledgeTouchpoint } from '../types/domain'
 import { getMindMap, regenerateMindMap, getAssetDetail } from '../services/mockApi'
 import { Button } from '../components/ui/Button'
@@ -13,6 +14,7 @@ export default function MindMapPage() {
   const toast = useToast()
 
   const [mindMap, setMindMap] = useState<MindMap | null>(null)
+  usePageTitle(mindMap ? `Mind Map — ${mindMap.title}` : 'Mind Map')
   const [loading, setLoading] = useState(true)
   const [confirmRegenerate, setConfirmRegenerate] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
@@ -158,7 +160,7 @@ export default function MindMapPage() {
   /* ---------------------------------------------------------------- */
 
   return (
-    <div className="flex h-screen w-full flex-col bg-background">
+    <main className="flex h-screen w-full flex-col bg-background">
       {/* Header */}
       <header className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <button
@@ -202,7 +204,7 @@ export default function MindMapPage() {
           <>
             {/* Desktop: slide-in panel */}
             <aside
-              className="hidden md:flex w-80 shrink-0 flex-col border-l border-border bg-white"
+              className="hidden md:flex w-80 shrink-0 flex-col border-l border-border bg-background"
               role="complementary"
               aria-label="Knowledge touchpoint details"
             >
@@ -326,6 +328,6 @@ export default function MindMapPage() {
         message="This will generate a new mind map layout with potentially different key terms. Continue?"
         confirmLabel="Regenerate"
       />
-    </div>
+    </main>
   )
 }

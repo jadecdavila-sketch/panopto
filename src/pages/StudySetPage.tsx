@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { usePageTitle } from '../hooks/usePageTitle'
 import {
   getStudySetDetail,
   listAssets,
@@ -68,18 +69,25 @@ function EditAssetsModal({
   onSave: (assetIds: string[]) => void
 }) {
   const [allAssets, setAllAssets] = useState<LearningAsset[]>([])
-  const [selected, setSelected] = useState<Set<string>>(new Set(currentAssetIds))
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(currentAssetIds))
   const [loading, setLoading] = useState(true)
 
+  // Reset selection when the modal opens (via key) or asset list changes
+  const currentIdsKey = currentAssetIds.join(',')
   useEffect(() => {
     if (!isOpen) return
     setSelected(new Set(currentAssetIds))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIdsKey, isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
     setLoading(true)
     listAssets(topicId).then((assets) => {
       setAllAssets(assets.filter((a) => !a.isSynthesis))
       setLoading(false)
     })
-  }, [isOpen, topicId, currentAssetIds])
+  }, [isOpen, topicId])
 
   function toggleAsset(id: string) {
     setSelected((prev) => {
@@ -150,6 +158,7 @@ export default function StudySetPage() {
 
   // Data state
   const [studySet, setStudySet] = useState<StudySet | null>(null)
+  usePageTitle(studySet?.name ?? 'Study Set')
   const [synthesisAsset, setSynthesisAsset] = useState<LearningAsset | null>(null)
   const [setAssets, setSetAssets] = useState<LearningAsset[]>([])
   const [ssFlashcardSets, setSsFlashcardSets] = useState<FlashcardSet[]>([])
@@ -242,9 +251,10 @@ export default function StudySetPage() {
     else if (result.modalityType === 'mindmap') navigate(`/mindmap/${result.id}`)
   }
 
-  function handleCitationClick(_citation: Citation) {
+  function handleCitationClick(_: Citation) {
     // For study set, citations may reference source assets
     // In a full implementation, this could open the asset page
+    void _
   }
 
   // Loading state

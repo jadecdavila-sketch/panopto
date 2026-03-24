@@ -48,7 +48,6 @@ export function OnboardingModal({ isOpen, onDismiss }: OnboardingModalProps) {
       title={STEPS[step].title}
       size="lg"
     >
-      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
       <div onKeyDown={handleKeyDown} aria-live="polite">
         <StepContent />
       </div>

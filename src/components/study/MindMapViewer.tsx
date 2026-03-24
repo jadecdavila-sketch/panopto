@@ -93,6 +93,7 @@ export function MindMapViewer({ mindMap, onNodeClick }: MindMapViewerProps) {
     width: 1000,
     height: 800,
   })
+  const [isPanningState, setIsPanningState] = useState(false)
   const isPanning = useRef(false)
   const panStart = useRef({ x: 0, y: 0 })
   const viewBoxStart = useRef({ x: 0, y: 0 })
@@ -102,6 +103,7 @@ export function MindMapViewer({ mindMap, onNodeClick }: MindMapViewerProps) {
       '(prefers-reduced-motion: reduce)',
     ).matches
     if (prefersReduced) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: skip animation for reduced-motion users
       setMounted(true)
     } else {
       requestAnimationFrame(() => setMounted(true))
@@ -117,6 +119,7 @@ export function MindMapViewer({ mindMap, onNodeClick }: MindMapViewerProps) {
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       isPanning.current = true
+      setIsPanningState(true)
       panStart.current = { x: e.clientX, y: e.clientY }
       viewBoxStart.current = { x: viewBox.x, y: viewBox.y }
     },
@@ -142,6 +145,7 @@ export function MindMapViewer({ mindMap, onNodeClick }: MindMapViewerProps) {
 
   const handleMouseUp = useCallback(() => {
     isPanning.current = false
+    setIsPanningState(false)
   }, [])
 
   /* ---------------------------------------------------------------- */
@@ -174,6 +178,7 @@ export function MindMapViewer({ mindMap, onNodeClick }: MindMapViewerProps) {
     (e: React.TouchEvent) => {
       if (e.touches.length === 1) {
         isPanning.current = true
+        setIsPanningState(true)
         panStart.current = {
           x: e.touches[0].clientX,
           y: e.touches[0].clientY,
@@ -204,6 +209,7 @@ export function MindMapViewer({ mindMap, onNodeClick }: MindMapViewerProps) {
 
   const handleTouchEnd = useCallback(() => {
     isPanning.current = false
+    setIsPanningState(false)
   }, [])
 
   /* ---------------------------------------------------------------- */
@@ -396,7 +402,7 @@ export function MindMapViewer({ mindMap, onNodeClick }: MindMapViewerProps) {
       aria-label={`Mind map: ${mindMap.title}`}
       role="img"
       className="select-none"
-      style={{ cursor: isPanning.current ? 'grabbing' : 'grab' }}
+      style={{ cursor: isPanningState ? 'grabbing' : 'grab' }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}

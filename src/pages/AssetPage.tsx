@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { usePageTitle } from '../hooks/usePageTitle'
 import {
   getAssetDetail,
   getAssetKPIs,
@@ -103,6 +104,7 @@ export default function AssetPage() {
 
   // Data state
   const [asset, setAsset] = useState<LearningAsset | null>(null)
+  usePageTitle(asset?.title ?? 'Asset')
   const [kpis, setKpis] = useState<AssetKPI | null>(null)
   const [assetFlashcardSets, setAssetFlashcardSets] = useState<FlashcardSet[]>([])
   const [assetQuizzes, setAssetQuizzes] = useState<Quiz[]>([])

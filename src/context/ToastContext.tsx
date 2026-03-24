@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useRef,
+  useEffect,
   type ReactNode,
 } from 'react'
 
@@ -47,13 +48,25 @@ const DISMISS_MS = 4000
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
   const counterRef = useRef(0)
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+  // Clean up all timers on unmount
+  useEffect(() => {
+    const timers = timersRef.current
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer))
+      timers.clear()
+    }
+  }, [])
 
   const addToast = useCallback((message: string, variant: ToastVariant) => {
     const id = `toast-${++counterRef.current}`
     setToasts((prev) => [...prev, { id, message, variant }])
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id))
+      timersRef.current.delete(id)
     }, DISMISS_MS)
+    timersRef.current.set(id, timer)
   }, [])
 
   const success = useCallback(

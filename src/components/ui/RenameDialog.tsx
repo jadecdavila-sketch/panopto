@@ -24,6 +24,7 @@ export function RenameDialog({
 
   // Reset value when dialog opens
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: sync form state when dialog opens
     if (isOpen) setValue(currentName)
   }, [isOpen, currentName])
 

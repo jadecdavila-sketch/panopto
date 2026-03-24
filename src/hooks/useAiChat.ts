@@ -20,8 +20,6 @@ interface UseAiChatResult {
   clearMessages: () => void
 }
 
-let messageCounter = 0
-
 function findRelevantKT(
   text: string,
   kts: KnowledgeTouchpoint[],
@@ -57,6 +55,7 @@ export function useAiChat({
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isTyping, setIsTyping] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const counterRef = useRef(0)
 
   const sendMessage = useCallback(
     (text: string) => {
@@ -64,7 +63,7 @@ export function useAiChat({
       if (!trimmed) return
 
       const userMsg: ChatMessage = {
-        id: `msg-${++messageCounter}`,
+        id: `msg-${++counterRef.current}`,
         role: 'user',
         content: trimmed,
         timestamp: new Date().toISOString(),
@@ -76,7 +75,7 @@ export function useAiChat({
       const delay = 1000 + Math.random() * 1000
       timerRef.current = setTimeout(() => {
         const aiMsg: ChatMessage = {
-          id: `msg-${++messageCounter}`,
+          id: `msg-${++counterRef.current}`,
           role: 'assistant',
           content: buildResponse(trimmed, knowledgeTouchpoints, assetTitle),
           timestamp: new Date().toISOString(),

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import type { LearningAsset, Citation } from '../../types/domain'
 import { AssetBadge } from '../ui/Badge'
 import { Button } from '../ui/Button'
@@ -16,13 +16,15 @@ function DocumentViewer({
   activeCitation?: Citation
 }) {
   const totalPages = asset.pages ?? 5
-  const [currentPage, setCurrentPage] = useState(1)
-
-  useEffect(() => {
-    if (activeCitation?.page) {
-      setCurrentPage(Math.min(activeCitation.page, totalPages))
-    }
-  }, [activeCitation, totalPages])
+  // Derive initial page from citation; allow user override
+  const citationPage = activeCitation?.page
+    ? Math.min(activeCitation.page, totalPages)
+    : null
+  const [userPage, setUserPage] = useState<number | null>(null)
+  const currentPage = userPage ?? citationPage ?? 1
+  const setCurrentPage = (updater: (prev: number) => number) => {
+    setUserPage(updater(currentPage))
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -70,16 +72,11 @@ function DocumentViewer({
 }
 
 function VideoViewer({ activeCitation }: { activeCitation?: Citation }) {
-  const [jumpTarget, setJumpTarget] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (activeCitation?.timestampSec != null) {
-      const m = Math.floor(activeCitation.timestampSec / 60)
-      const s = activeCitation.timestampSec % 60
-      setJumpTarget(`${m}:${String(s).padStart(2, '0')}`)
-    } else {
-      setJumpTarget(null)
-    }
+  const jumpTarget = useMemo(() => {
+    if (activeCitation?.timestampSec == null) return null
+    const m = Math.floor(activeCitation.timestampSec / 60)
+    const s = activeCitation.timestampSec % 60
+    return `${m}:${String(s).padStart(2, '0')}`
   }, [activeCitation])
 
   return (

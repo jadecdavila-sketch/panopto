@@ -96,8 +96,6 @@ export function DropdownMenu({
     <div ref={containerRef} className="relative inline-block">
       {/* Trigger */}
       <div
-        role="button"
-        tabIndex={0}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => {

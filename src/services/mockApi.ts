@@ -75,6 +75,97 @@ const recentActivity: RecentActivityItem[] = isEmpty ? [] : clone(initialRecentA
 const translationAttempted = new Set<string>()
 
 /* ------------------------------------------------------------------ */
+/*  Global Search                                                      */
+/* ------------------------------------------------------------------ */
+
+export type SearchResultType = 'topic' | 'asset' | 'flashcardSet' | 'quiz' | 'mindmap'
+
+export interface SearchResult {
+  id: string
+  type: SearchResultType
+  title: string
+  subtitle?: string
+  /** Route path for navigation */
+  href: string
+}
+
+export async function globalSearch(query: string): Promise<SearchResult[]> {
+  await delay(60)
+  const q = query.toLowerCase().trim()
+  if (!q) return []
+
+  const results: SearchResult[] = []
+
+  // Search topics (folios)
+  for (const t of topics) {
+    if (t.name.toLowerCase().includes(q)) {
+      results.push({
+        id: t.id,
+        type: 'topic',
+        title: t.name,
+        subtitle: t.archived ? 'Archived folio' : 'Folio',
+        href: `/topics/${t.id}`,
+      })
+    }
+  }
+
+  // Search learning assets
+  for (const a of assets) {
+    if (a.isDeleted) continue
+    if (a.title.toLowerCase().includes(q)) {
+      results.push({
+        id: a.id,
+        type: 'asset',
+        title: a.title,
+        subtitle: `${a.type.charAt(0).toUpperCase() + a.type.slice(1)} · ${a.sourceLabel}`,
+        href: `/assets/${a.id}`,
+      })
+    }
+  }
+
+  // Search flashcard sets
+  for (const fs of flashcardSets) {
+    if (fs.title.toLowerCase().includes(q)) {
+      results.push({
+        id: fs.id,
+        type: 'flashcardSet',
+        title: fs.title,
+        subtitle: `Flashcards · ${fs.cards.length} cards`,
+        href: `/flashcards/${fs.id}/session`,
+      })
+    }
+  }
+
+  // Search quizzes
+  for (const qz of quizzes) {
+    if (qz.title.toLowerCase().includes(q)) {
+      results.push({
+        id: qz.id,
+        type: 'quiz',
+        title: qz.title,
+        subtitle: `Quiz · ${qz.questions.length} questions`,
+        href: `/quiz/${qz.id}/session`,
+      })
+    }
+  }
+
+  // Search mind maps
+  for (const mm of mindMaps) {
+    if (mm.title.toLowerCase().includes(q)) {
+      results.push({
+        id: mm.id,
+        type: 'mindmap',
+        title: mm.title,
+        subtitle: `Mind Map · ${mm.nodes.length} nodes`,
+        href: `/mindmap/${mm.id}`,
+      })
+    }
+  }
+
+  return results.slice(0, 20)
+}
+
+/* ------------------------------------------------------------------ */
 /*  Topics                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -516,7 +607,7 @@ export async function generateFlashcardSet(
     const kt = kts[i % kts.length]
     cards.push({
       id: nextId('fc'),
-      front: buildFlashcardFront(kt, i, options.difficulty),
+      front: buildFlashcardFront(kt, i),
       back: buildFlashcardBack(kt, i),
       citationIds: kt.citationIds.slice(0, 1),
     })
@@ -600,7 +691,7 @@ export async function generateQuiz(
   const questions: QuizQuestion[] = []
   for (let i = 0; i < count; i++) {
     const kt = kts[i % kts.length]
-    questions.push(buildQuizQuestion(kt, i, options.difficulty))
+    questions.push(buildQuizQuestion(kt, i))
   }
 
   const quiz: Quiz = {
@@ -1157,7 +1248,6 @@ function buildDefaultName(
 function buildFlashcardFront(
   kt: KnowledgeTouchpoint,
   index: number,
-  _difficulty?: 'easy' | 'medium' | 'hard'
 ): string {
   const prefixes = [
     'What is the significance of',
@@ -1188,7 +1278,6 @@ function buildFlashcardBack(
 function buildQuizQuestion(
   kt: KnowledgeTouchpoint,
   index: number,
-  _difficulty?: 'easy' | 'medium' | 'hard'
 ): QuizQuestion {
   const sentences = kt.body.split('. ')
   const stem = sentences[0] ?? kt.body

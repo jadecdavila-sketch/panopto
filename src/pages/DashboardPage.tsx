@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { usePageTitle } from '../hooks/usePageTitle'
 import type { Topic, DashboardKPI } from '../types/domain'
 import {
   listTopics,
@@ -33,6 +34,7 @@ function DevDataToggle() {
 }
 
 export default function DashboardPage() {
+  usePageTitle('Dashboard')
   const navigate = useNavigate()
   const [topics, setTopics] = useState<Topic[]>([])
   const [kpis, setKpis] = useState<DashboardKPI | null>(null)
@@ -147,7 +149,7 @@ export default function DashboardPage() {
       {dashTab === 'materials' && <AssetsTable />}
 
       {/* Dev toggle: clear sample data */}
-      <DevDataToggle />
+      {import.meta.env.DEV && <DevDataToggle />}
     </div>
   )
 }

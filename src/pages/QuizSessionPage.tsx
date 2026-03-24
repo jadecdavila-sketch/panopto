@@ -5,6 +5,7 @@ import {
   useCallback,
 } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { usePageTitle } from '../hooks/usePageTitle'
 import type {
   Quiz,
   QuizSession,
@@ -59,6 +60,7 @@ export default function QuizSessionPage() {
 
   // Data
   const [quiz, setQuiz] = useState<Quiz | null>(null)
+  usePageTitle(quiz ? `Quiz — ${quiz.title}` : 'Quiz')
   const [pastSessions, setPastSessions] = useState<QuizSession[]>([])
   const [savedProgress, setSavedProgress] = useState<SavedProgress | null>(null)
 
@@ -387,7 +389,7 @@ export default function QuizSessionPage() {
 
   if (phase === 'loading' || !quiz) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
+      <main className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <svg
             className="h-8 w-8 animate-spin text-primary"
@@ -411,7 +413,7 @@ export default function QuizSessionPage() {
           </svg>
           <p className="text-sm text-text-secondary">Loading quiz...</p>
         </div>
-      </div>
+      </main>
     )
   }
 
@@ -421,8 +423,8 @@ export default function QuizSessionPage() {
 
   if (phase === 'resume-prompt') {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="flex max-w-sm flex-col items-center gap-6 rounded-lg border border-border bg-white p-8 shadow-sm">
+      <main className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="flex max-w-sm flex-col items-center gap-6 rounded-lg border border-border bg-background p-8 shadow-sm">
           <h2 className="text-lg font-semibold text-text-primary">
             Resume Quiz?
           </h2>
@@ -438,7 +440,7 @@ export default function QuizSessionPage() {
             </Button>
           </div>
         </div>
-      </div>
+      </main>
     )
   }
 
@@ -453,7 +455,7 @@ export default function QuizSessionPage() {
     const bestScore = getBestScore()
 
     return (
-      <div className="flex min-h-screen w-full flex-col bg-background">
+      <main className="flex min-h-screen w-full flex-col bg-background">
         {/* Header */}
         <header className="flex items-center justify-between border-b border-border px-4 py-3">
           <button
@@ -592,7 +594,7 @@ export default function QuizSessionPage() {
           message="This will generate new questions. Your current results will still be saved. Continue?"
           confirmLabel="Regenerate"
         />
-      </div>
+      </main>
     )
   }
 
@@ -606,7 +608,7 @@ export default function QuizSessionPage() {
   const isLastQuestion = currentIndex === quiz.questions.length - 1
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background">
+    <main className="flex min-h-screen w-full flex-col bg-background">
       {/* Header */}
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <button
@@ -651,7 +653,7 @@ export default function QuizSessionPage() {
       <ProgressBar value={progressPercent} />
 
       {/* Question area */}
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-8">
+      <section className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-8">
         <QuizQuestion
           question={currentQuestion}
           selectedIndex={selectedIndex}
@@ -667,7 +669,7 @@ export default function QuizSessionPage() {
             </Button>
           </div>
         )}
-      </main>
+      </section>
 
       {/* Confirm exit */}
       <ConfirmDialog
@@ -679,6 +681,6 @@ export default function QuizSessionPage() {
         confirmLabel="End quiz"
         variant="danger"
       />
-    </div>
+    </main>
   )
 }

@@ -3,6 +3,7 @@ import {
   useRef,
   useCallback,
   useState,
+  useId,
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -37,9 +38,7 @@ export function Modal({
   const isMobile = useIsMobile()
   const dialogRef = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
-  const titleId = useRef(
-    `modal-title-${Math.random().toString(36).slice(2, 9)}`,
-  ).current
+  const titleId = useId()
 
   // Animate in
   useEffect(() => {
@@ -48,6 +47,7 @@ export function Modal({
       const frame = requestAnimationFrame(() => setVisible(true))
       return () => cancelAnimationFrame(frame)
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset visibility when modal closes
     setVisible(false)
   }, [isOpen])
 

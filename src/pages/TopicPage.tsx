@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { Button } from '../components/ui/Button'
 import { KPICard } from '../components/ui/KPICard'
 import { FilterChips } from '../components/ui/FilterChips'
@@ -118,6 +119,7 @@ export default function TopicPage() {
 
   // Data state
   const [topic, setTopic] = useState<Topic | null>(null)
+  usePageTitle(topic?.name ?? 'Folio')
   const [assets, setAssets] = useState<LearningAsset[]>([])
   const [studySets, setStudySets] = useState<StudySet[]>([])
   const [kpis, setKpis] = useState<TopicKPI | null>(null)

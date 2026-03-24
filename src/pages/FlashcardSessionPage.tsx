@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { usePageTitle } from '../hooks/usePageTitle'
 import type { FlashcardSet, Flashcard, FlashcardSession } from '../types/domain'
 import {
   getFlashcardSet,
@@ -53,6 +54,7 @@ export default function FlashcardSessionPage() {
 
   // --- Data loading ---
   const [flashcardSet, setFlashcardSet] = useState<FlashcardSet | null>(null)
+  usePageTitle(flashcardSet ? `Flashcards — ${flashcardSet.title}` : 'Flashcards')
   const [pastSessions, setPastSessions] = useState<FlashcardSession[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -282,7 +284,7 @@ export default function FlashcardSessionPage() {
   // --- Loading ---
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
+      <main className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <svg
             className="h-8 w-8 animate-spin text-primary"
@@ -306,28 +308,28 @@ export default function FlashcardSessionPage() {
           </svg>
           <p className="text-sm text-text-secondary">Loading flashcards...</p>
         </div>
-      </div>
+      </main>
     )
   }
 
   // --- Error ---
   if (error || !flashcardSet) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
+      <main className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <p className="text-sm text-status-failed">{error ?? 'Flashcard set not found'}</p>
           <Button variant="secondary" onClick={() => navigate(-1)} aria-label="Go back">
             Go back
           </Button>
         </div>
-      </div>
+      </main>
     )
   }
 
   // --- Pre-session screen ---
   if (phase === 'pre') {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
+      <main className="flex min-h-screen flex-col bg-background">
         {/* Header */}
         <header className="flex items-center justify-between border-b border-border px-4 py-3">
           <button
@@ -412,7 +414,7 @@ export default function FlashcardSessionPage() {
           message="This will replace the current cards with new ones generated from the same material."
           confirmLabel="Regenerate"
         />
-      </div>
+      </main>
     )
   }
 
@@ -422,7 +424,7 @@ export default function FlashcardSessionPage() {
     const progress = ((currentIndex) / studyCards.length) * 100
 
     return (
-      <div className="flex min-h-screen flex-col bg-background">
+      <main className="flex min-h-screen flex-col bg-background">
         {/* Header bar */}
         <header className="flex items-center justify-between border-b border-border px-4 py-3">
           <button
@@ -509,13 +511,13 @@ export default function FlashcardSessionPage() {
           confirmLabel="End Session"
           cancelLabel="Continue"
         />
-      </div>
+      </main>
     )
   }
 
   // --- Results screen ---
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <main className="flex min-h-screen flex-col bg-background">
       {/* Header */}
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <button
@@ -653,6 +655,6 @@ export default function FlashcardSessionPage() {
         confirmLabel="Regenerate"
         cancelLabel="Cancel"
       />
-    </div>
+    </main>
   )
 }
