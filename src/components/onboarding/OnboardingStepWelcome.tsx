@@ -84,10 +84,10 @@ export function OnboardingStepWelcome() {
             >
               {t.icon}
             </div>
-            <dt className="mb-1 text-[13px] font-bold tracking-tight text-text-primary">
+            <dt className="mb-1 text-sm font-bold tracking-tight text-text-primary">
               {t.name}
             </dt>
-            <dd className="text-xs leading-relaxed text-text-secondary">
+            <dd className="text-sm leading-relaxed text-text-secondary">
               {t.def}
             </dd>
           </div>

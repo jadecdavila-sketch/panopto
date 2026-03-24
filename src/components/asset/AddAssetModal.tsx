@@ -179,7 +179,7 @@ export function AddAssetModal({
                   setTopicInput('')
                   setStudySetId('')
                 }}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-lg border border-border bg-background py-2 pl-3 text-sm text-text-primary outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
                 <option value="">Select a folio...</option>
                 {topics.map((t) => (
@@ -228,7 +228,7 @@ export function AddAssetModal({
               id="asset-studyset"
               value={studySetId}
               onChange={(e) => setStudySetId(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-lg border border-border bg-background py-2 pl-3 text-sm text-text-primary outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
             >
               <option value="">None</option>
               {studySets.map((ss) => (

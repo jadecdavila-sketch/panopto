@@ -344,7 +344,7 @@ export function AssetsTable() {
           id="sort-select"
           value={prefs.sort}
           onChange={(e) => updatePrefs({ sort: e.target.value as SortKey })}
-          className="rounded-md border border-border bg-background px-2 py-1 text-sm text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          className="rounded-md border border-border bg-background py-1 pl-2 text-sm text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
         >
           {sortOptions.map((opt) => (
             <option key={opt.id} value={opt.id}>
