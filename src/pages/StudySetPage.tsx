@@ -24,7 +24,7 @@ import { Button } from '../components/ui/Button'
 import { Skeleton } from '../components/ui/Skeleton'
 import { InlineError } from '../components/ui/InlineError'
 import { KnowledgeTouchpointCard } from '../components/asset/KnowledgeTouchpointCard'
-import { AssetCard } from '../components/asset/AssetCard'
+import { AssetBadge, StatusBadge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
 import { GenerationModal } from '../components/asset/GenerationModal'
 import { AiChatFab } from '../components/chat/AiChatFab'
@@ -34,21 +34,34 @@ import { AiChatPanel } from '../components/chat/AiChatPanel'
 /*  Icons                                                              */
 /* ------------------------------------------------------------------ */
 
-function ChevronIcon({ expanded }: { expanded: boolean }) {
-  return (
-    <svg
-      className={`h-5 w-5 transition-transform ${expanded ? 'rotate-180' : ''}`}
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        fillRule="evenodd"
-        d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-        clipRule="evenodd"
-      />
-    </svg>
-  )
+const accentColors: Record<LearningAsset['type'], string> = {
+  document: '#F59E0B',
+  video: '#38BDF8',
+  panopto: '#2AC271',
+}
+
+function CompactTypeIcon({ type }: { type: LearningAsset['type'] }) {
+  const cls = 'h-4 w-4'
+  switch (type) {
+    case 'document':
+      return (
+        <svg className={cls} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+        </svg>
+      )
+    case 'video':
+      return (
+        <svg className={cls} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+        </svg>
+      )
+    case 'panopto':
+      return (
+        <svg className={cls} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path fillRule="evenodd" d="M2 4.25A2.25 2.25 0 014.25 2h11.5A2.25 2.25 0 0118 4.25v8.5A2.25 2.25 0 0115.75 15h-3.105a3.501 3.501 0 001.1 1.677A.75.75 0 0113.26 18H6.74a.75.75 0 01-.484-1.323A3.501 3.501 0 007.355 15H4.25A2.25 2.25 0 012 12.75v-8.5z" clipRule="evenodd" />
+        </svg>
+      )
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -168,7 +181,6 @@ export default function StudySetPage() {
   const [error, setError] = useState<string | null>(null)
 
   // UI state
-  const [assetsExpanded, setAssetsExpanded] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
 
   // Chat state (open by default)
@@ -347,53 +359,42 @@ export default function StudySetPage() {
         )}
       </div>
 
-      {/* Learning Materials panel */}
-      <div className="mt-6 rounded-lg border border-border bg-background">
-        <button
-          type="button"
-          onClick={() => setAssetsExpanded((v) => !v)}
-          className="flex w-full items-center justify-between px-5 py-4 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          aria-expanded={assetsExpanded}
-        >
-          <span className="text-sm font-medium text-text-primary">
+      {/* Learning Materials */}
+      <div className="mt-6 rounded-lg border border-border bg-background px-5 py-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-medium text-text-primary">
             {setAssets.length} Learning Material{setAssets.length !== 1 ? 's' : ''}
-          </span>
-          <ChevronIcon expanded={assetsExpanded} />
-        </button>
-
-        {assetsExpanded && (
-          <div className="border-t border-border px-5 pb-5 pt-3">
-            <div className="flex flex-col gap-3">
-              {setAssets.map((asset) => (
-                <div
-                  key={asset.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/assets/${asset.id}?fromSet=${studySet?.id}&topicId=${topicId}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      navigate(`/assets/${asset.id}?fromSet=${studySet?.id}&topicId=${topicId}`)
-                    }
-                  }}
-                  className="cursor-pointer"
-                >
-                  <AssetCard asset={asset} />
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setEditModalOpen(true)}
-              >
-                Edit assets
-              </Button>
-            </div>
-          </div>
-        )}
+          </h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditModalOpen(true)}
+          >
+            Edit
+          </Button>
+        </div>
+        <div className="flex flex-col gap-2">
+          {setAssets.map((asset) => (
+            <button
+              key={asset.id}
+              type="button"
+              onClick={() => navigate(`/assets/${asset.id}?fromSet=${studySet?.id}&topicId=${topicId}`)}
+              className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-left transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              style={{ borderLeftWidth: 3, borderLeftColor: accentColors[asset.type] }}
+            >
+              <span className="text-text-secondary">
+                <CompactTypeIcon type={asset.type} />
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary">
+                {asset.title}
+              </span>
+              <AssetBadge assetType={asset.type} />
+              {asset.processingStatus !== 'ready' && (
+                <StatusBadge status={asset.processingStatus} />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Knowledge Touchpoints section */}
@@ -415,7 +416,7 @@ export default function StudySetPage() {
 
         {synthesisReady && kts.length > 0 ? (
           <>
-            {/* Study modality generation / study panel */}
+            {/* Study aid generation / study panel */}
             <div className="mb-8 rounded-xl border border-border bg-primary-tint p-5">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-forest">
                 Study this set

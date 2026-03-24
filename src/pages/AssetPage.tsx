@@ -8,6 +8,8 @@ import {
   listFlashcardSets,
   listQuizzes,
   listMindMaps,
+  getTopicDetail,
+  getStudySetDetail,
 } from '../services/mockApi'
 import type { LearningAsset, AssetKPI, Citation, GenerationScope, FlashcardSet, Quiz, MindMap } from '../types/domain'
 import { useProcessingPoller } from '../hooks/useProcessingPoller'
@@ -102,6 +104,10 @@ export default function AssetPage() {
   const fromSetId = searchParams.get('fromSet')
   const fromTopicId = searchParams.get('topicId')
 
+  // Breadcrumb names
+  const [topicName, setTopicName] = useState<string | null>(null)
+  const [studySetName, setStudySetName] = useState<string | null>(null)
+
   // Data state
   const [asset, setAsset] = useState<LearningAsset | null>(null)
   usePageTitle(asset?.title ?? 'Asset')
@@ -142,12 +148,25 @@ export default function AssetPage() {
       setAssetFlashcardSets(fSets)
       setAssetQuizzes(qList)
       setAssetMindMaps(mList)
+
+      // Fetch breadcrumb names
+      const resolvedTopicId = fromTopicId || assetData.topicId
+      if (resolvedTopicId) {
+        getTopicDetail(resolvedTopicId)
+          .then((d) => setTopicName(d.topic.name))
+          .catch(() => setTopicName(null))
+      }
+      if (fromSetId) {
+        getStudySetDetail(fromSetId)
+          .then((d) => setStudySetName(d.studySet.name))
+          .catch(() => setStudySetName(null))
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load asset')
     } finally {
       setLoading(false)
     }
-  }, [assetId])
+  }, [assetId, fromTopicId, fromSetId])
 
   useEffect(() => {
     fetchData()
@@ -389,7 +408,7 @@ export default function AssetPage() {
                     to={`/topics/${topicId}`}
                     className="hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                   >
-                    Folio
+                    {topicName ?? 'Folio'}
                   </Link>
                 </li>
                 <li aria-hidden="true" className="text-text-disabled">/</li>
@@ -402,7 +421,7 @@ export default function AssetPage() {
                     to={`/topics/${topicId}/study-sets/${fromSetId}`}
                     className="hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                   >
-                    Study Set
+                    {studySetName ?? 'Study Set'}
                   </Link>
                 </li>
                 <li aria-hidden="true" className="text-text-disabled">/</li>
