@@ -198,7 +198,7 @@ export default function Header() {
               onFocus={() => setSearchFocused(true)}
               onKeyDown={handleSearchKeyDown}
               placeholder="Search folios, materials, flashcards, quizzes..."
-              aria-label="Search folios, materials, and study modalities"
+              aria-label="Search folios, materials, and study aids"
               aria-expanded={showResults && results.length > 0}
               aria-controls="global-search-results"
               aria-activedescendant={

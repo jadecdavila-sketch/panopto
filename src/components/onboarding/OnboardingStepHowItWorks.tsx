@@ -57,7 +57,7 @@ export function OnboardingStepHowItWorks() {
       {/* Key insight */}
       <div className="rounded-lg border border-primary/20 bg-primary-tint px-4 py-3">
         <p className="text-sm font-medium text-forest-mid">
-          Study modalities can be generated at{' '}
+          Study aids can be generated at{' '}
           <strong className="text-forest">every level</strong> — scope
           determines the breadth, from a single Knowledge Touchpoint to an
           entire Folio.

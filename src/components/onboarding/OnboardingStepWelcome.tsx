@@ -31,7 +31,7 @@ const terms = [
   },
   {
     icon: '⚡',
-    name: 'Study Modality',
+    name: 'Study Aid',
     accent: 'bg-[#7C3AED]',
     iconBg: 'bg-[#F5F3FF]',
     def: 'Flashcards, Quizzes, or Mind Maps — generated at any level.',
