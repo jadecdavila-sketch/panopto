@@ -3,7 +3,7 @@ import { Layers, ClipboardCheck, Network, Lightbulb } from 'lucide-react'
 import type { KnowledgeTouchpoint, Citation } from '../../types/domain'
 import { Button } from '../ui/Button'
 
-const COLLAPSED_HEIGHT = 72 // ~3 lines of text
+const COLLAPSED_HEIGHT = 96 // ~4.5 lines — enough to show faded next sentence
 
 interface KnowledgeTouchpointCardProps {
   kt: KnowledgeTouchpoint
@@ -82,7 +82,15 @@ export function KnowledgeTouchpointCard({
       </div>
 
       {/* Body with expand/collapse */}
-      <div className="relative mt-2">
+      <div
+        className="relative mt-2 cursor-pointer"
+        onClick={() => needsTruncation && setExpanded((v) => !v)}
+        role={needsTruncation ? 'button' : undefined}
+        tabIndex={needsTruncation ? 0 : undefined}
+        onKeyDown={needsTruncation ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded((v) => !v) } } : undefined}
+        aria-expanded={needsTruncation ? expanded : undefined}
+        aria-label={needsTruncation ? (expanded ? 'Collapse text' : 'Expand text') : undefined}
+      >
         <div
           ref={bodyRef}
           className="text-sm text-text-secondary leading-relaxed overflow-hidden transition-[max-height] duration-200 ease-out"
@@ -92,22 +100,9 @@ export function KnowledgeTouchpointCard({
         </div>
         {needsTruncation && !expanded && (
           <div
-            className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-background to-transparent cursor-pointer"
-            onClick={() => setExpanded(true)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(true) } }}
-            aria-label="Show more"
+            className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background via-background/80 to-transparent"
+            aria-hidden="true"
           />
-        )}
-        {needsTruncation && (
-          <button
-            type="button"
-            onClick={() => setExpanded(!expanded)}
-            className="mt-1 text-xs font-medium text-primary hover:text-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          >
-            {expanded ? 'Show less' : 'Show more'}
-          </button>
         )}
       </div>
 
