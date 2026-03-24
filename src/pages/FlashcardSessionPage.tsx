@@ -15,6 +15,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { FlashcardCard } from '../components/study/FlashcardCard'
 import { ConfidenceCheckIn } from '../components/study/ConfidenceCheckIn'
 import { ReflectionPrompt } from '../components/study/ReflectionPrompt'
+import { RegenerateModal } from '../components/study/RegenerateModal'
 import { useToast } from '../context/ToastContext'
 
 /* ------------------------------------------------------------------ */
@@ -229,11 +230,12 @@ export default function FlashcardSessionPage() {
     }
   }
 
-  async function handleRegenerate() {
+  async function handleRegenerate(ktIds?: string[]) {
     if (!setId) return
+    setShowRegenConfirm(false)
     setIsRegenerating(true)
     try {
-      const newSet = await regenerateFlashcardSet(setId)
+      const newSet = await regenerateFlashcardSet(setId, ktIds)
       setFlashcardSet(newSet)
       setPhase('pre')
       toast.success('Flashcard set regenerated')
@@ -405,15 +407,17 @@ export default function FlashcardSessionPage() {
           </div>
         </div>
 
-        {/* Regenerate confirm */}
-        <ConfirmDialog
-          isOpen={showRegenConfirm}
-          onClose={() => setShowRegenConfirm(false)}
-          onConfirm={handleRegenerate}
-          title="Regenerate flashcard set?"
-          message="This will replace the current cards with new ones generated from the same material."
-          confirmLabel="Regenerate"
-        />
+        {/* Regenerate modal with content picker */}
+        {flashcardSet && (
+          <RegenerateModal
+            isOpen={showRegenConfirm}
+            onClose={() => setShowRegenConfirm(false)}
+            onConfirm={handleRegenerate}
+            title="Regenerate flashcard set?"
+            scope={flashcardSet.scope}
+            isLoading={isRegenerating}
+          />
+        )}
       </main>
     )
   }
@@ -645,16 +649,17 @@ export default function FlashcardSessionPage() {
         </div>
       </div>
 
-      {/* Regenerate confirm */}
-      <ConfirmDialog
-        isOpen={showRegenConfirm}
-        onClose={() => setShowRegenConfirm(false)}
-        onConfirm={handleRegenerate}
-        title="Regenerate flashcard set?"
-        message="This will replace the current cards with new ones generated from the same material."
-        confirmLabel="Regenerate"
-        cancelLabel="Cancel"
-      />
+      {/* Regenerate modal with content picker */}
+      {flashcardSet && (
+        <RegenerateModal
+          isOpen={showRegenConfirm}
+          onClose={() => setShowRegenConfirm(false)}
+          onConfirm={handleRegenerate}
+          title="Regenerate flashcard set?"
+          scope={flashcardSet.scope}
+          isLoading={isRegenerating}
+        />
+      )}
     </main>
   )
 }

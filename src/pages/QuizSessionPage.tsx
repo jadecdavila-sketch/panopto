@@ -25,6 +25,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { QuizQuestion } from '../components/study/QuizQuestion'
 import { ConfidenceCheckIn } from '../components/study/ConfidenceCheckIn'
 import { ReflectionPrompt } from '../components/study/ReflectionPrompt'
+import { RegenerateModal } from '../components/study/RegenerateModal'
 import { useToast } from '../context/ToastContext'
 
 /* ------------------------------------------------------------------ */
@@ -310,10 +311,11 @@ export default function QuizSessionPage() {
     setPhase('session')
   }
 
-  async function handleRegenerate() {
+  async function handleRegenerate(ktIds?: string[]) {
     if (!quizId) return
+    setConfirmRegenerate(false)
     try {
-      const newQuiz = await regenerateQuiz(quizId)
+      const newQuiz = await regenerateQuiz(quizId, ktIds)
       setQuiz(newQuiz)
       handleRetake()
       toast.success('Quiz regenerated!')
@@ -586,14 +588,15 @@ export default function QuizSessionPage() {
           </div>
         </div>
 
-        <ConfirmDialog
-          isOpen={confirmRegenerate}
-          onClose={() => setConfirmRegenerate(false)}
-          onConfirm={handleRegenerate}
-          title="Regenerate Quiz"
-          message="This will generate new questions. Your current results will still be saved. Continue?"
-          confirmLabel="Regenerate"
-        />
+        {quiz && (
+          <RegenerateModal
+            isOpen={confirmRegenerate}
+            onClose={() => setConfirmRegenerate(false)}
+            onConfirm={handleRegenerate}
+            title="Regenerate Quiz"
+            scope={quiz.scope}
+          />
+        )}
       </main>
     )
   }
@@ -640,6 +643,13 @@ export default function QuizSessionPage() {
             Question {currentIndex + 1} of {quiz.questions.length}
           </span>
           <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setConfirmRegenerate(true)}
+          >
+            Regenerate
+          </Button>
+          <Button
             variant="secondary"
             size="sm"
             onClick={() => setConfirmExit(true)}
@@ -681,6 +691,17 @@ export default function QuizSessionPage() {
         confirmLabel="End quiz"
         variant="danger"
       />
+
+      {/* Regenerate modal */}
+      {quiz && (
+        <RegenerateModal
+          isOpen={confirmRegenerate}
+          onClose={() => setConfirmRegenerate(false)}
+          onConfirm={handleRegenerate}
+          title="Regenerate Quiz"
+          scope={quiz.scope}
+        />
+      )}
     </main>
   )
 }

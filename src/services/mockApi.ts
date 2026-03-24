@@ -638,13 +638,14 @@ export async function generateFlashcardSet(
 }
 
 export async function regenerateFlashcardSet(
-  setId: string
+  setId: string,
+  ktIds?: string[],
 ): Promise<FlashcardSet> {
   await delay(400 + Math.random() * 600)
   const existing = flashcardSets.find((s) => s.id === setId)
   if (!existing) throw new Error(`FlashcardSet ${setId} not found`)
 
-  const kts = resolveKTs(existing.scope)
+  const kts = resolveKTs(existing.scope, ktIds)
   const newCards: Flashcard[] = existing.cards.map((_, i) => {
     const kt = kts[i % kts.length]
     return {
@@ -717,12 +718,12 @@ export async function generateQuiz(
   return clone(quiz)
 }
 
-export async function regenerateQuiz(quizId: string): Promise<Quiz> {
+export async function regenerateQuiz(quizId: string, ktIds?: string[]): Promise<Quiz> {
   await delay(400 + Math.random() * 600)
   const existing = quizzes.find((q) => q.id === quizId)
   if (!existing) throw new Error(`Quiz ${quizId} not found`)
 
-  const kts = resolveKTs(existing.scope)
+  const kts = resolveKTs(existing.scope, ktIds)
   const newQuestions: QuizQuestion[] = existing.questions.map((_, i) => {
     const kt = kts[i % kts.length]
     return buildQuizQuestion(kt, i + 200)
@@ -798,13 +799,14 @@ export async function generateMindMap(
 }
 
 export async function regenerateMindMap(
-  mindmapId: string
+  mindmapId: string,
+  ktIds?: string[],
 ): Promise<MindMap> {
   await delay(300 + Math.random() * 400)
   const existing = mindMaps.find((m) => m.id === mindmapId)
   if (!existing) throw new Error(`MindMap ${mindmapId} not found`)
 
-  const kts = resolveKTs(existing.scope)
+  const kts = resolveKTs(existing.scope, ktIds)
   const rootId = nextId('mn')
   const nodes: MindMapNode[] = [
     {
@@ -1197,8 +1199,11 @@ function resolveKTs(
   }
 
   if (filterKtIds && filterKtIds.length > 0) {
+    // Allow KTs from any asset, not just scope-resolved ones.
+    // This supports "additional content" picked outside the normal scope.
+    const allKTs = assets.flatMap((a) => a.knowledgeTouchpoints)
     const idSet = new Set(filterKtIds)
-    kts = kts.filter((k) => idSet.has(k.id))
+    kts = allKTs.filter((k) => idSet.has(k.id))
   }
 
   // Guarantee at least one KT for generation

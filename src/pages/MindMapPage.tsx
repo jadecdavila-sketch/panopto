@@ -4,8 +4,8 @@ import { usePageTitle } from '../hooks/usePageTitle'
 import type { MindMap, MindMapNode, KnowledgeTouchpoint } from '../types/domain'
 import { getMindMap, regenerateMindMap, getAssetDetail } from '../services/mockApi'
 import { Button } from '../components/ui/Button'
-import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { MindMapViewer } from '../components/study/MindMapViewer'
+import { RegenerateModal } from '../components/study/RegenerateModal'
 import { useToast } from '../context/ToastContext'
 
 export default function MindMapPage() {
@@ -91,11 +91,12 @@ export default function MindMapPage() {
   /*  Regenerate                                                       */
   /* ---------------------------------------------------------------- */
 
-  async function handleRegenerate() {
+  async function handleRegenerate(ktIds?: string[]) {
     if (!mindmapId) return
+    setConfirmRegenerate(false)
     try {
       setRegenerating(true)
-      const newMm = await regenerateMindMap(mindmapId)
+      const newMm = await regenerateMindMap(mindmapId, ktIds)
       setMindMap(newMm)
       setSelectedNode(null)
       setKtDetail(null)
@@ -319,15 +320,17 @@ export default function MindMapPage() {
         )}
       </div>
 
-      {/* Confirm regenerate */}
-      <ConfirmDialog
-        isOpen={confirmRegenerate}
-        onClose={() => setConfirmRegenerate(false)}
-        onConfirm={handleRegenerate}
-        title="Regenerate Mind Map"
-        message="This will generate a new mind map layout with potentially different key terms. Continue?"
-        confirmLabel="Regenerate"
-      />
+      {/* Regenerate modal with content picker */}
+      {mindMap && (
+        <RegenerateModal
+          isOpen={confirmRegenerate}
+          onClose={() => setConfirmRegenerate(false)}
+          onConfirm={handleRegenerate}
+          title="Regenerate Mind Map"
+          scope={mindMap.scope}
+          isLoading={regenerating}
+        />
+      )}
     </main>
   )
 }
