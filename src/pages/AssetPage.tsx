@@ -26,6 +26,7 @@ import { OriginalViewer } from '../components/asset/OriginalViewer'
 import { AiChatFab } from '../components/chat/AiChatFab'
 import { AiChatPanel } from '../components/chat/AiChatPanel'
 import { GenerationModal } from '../components/asset/GenerationModal'
+import { NotesButton } from '../components/ui/NotesButton'
 import { ResizableDrawer } from '../components/ui/ResizableDrawer'
 
 /* ------------------------------------------------------------------ */
@@ -290,57 +291,27 @@ export default function AssetPage() {
               Study this asset
             </h2>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {assetFlashcardSets.length > 0 ? (
-                <Button
-                  variant="success"
-                  leftIcon={<Layers className="h-4 w-4 text-status-ready" />}
-                  onClick={() => navigate(`/flashcards/${assetFlashcardSets[0].id}/session`)}
-                >
-                  Study flashcards
-                </Button>
-              ) : (
-                <Button
-                  variant="secondary"
-                  leftIcon={<Layers className="h-4 w-4" />}
-                  onClick={() => openGenerationModal(assetScope, 'flashcards')}
-                >
-                  Generate flashcards
-                </Button>
-              )}
-              {assetQuizzes.length > 0 ? (
-                <Button
-                  variant="success"
-                  leftIcon={<ClipboardCheck className="h-4 w-4 text-status-ready" />}
-                  onClick={() => navigate(`/quiz/${assetQuizzes[0].id}/session`)}
-                >
-                  Take quiz
-                </Button>
-              ) : (
-                <Button
-                  variant="secondary"
-                  leftIcon={<ClipboardCheck className="h-4 w-4" />}
-                  onClick={() => openGenerationModal(assetScope, 'quiz')}
-                >
-                  Generate quiz
-                </Button>
-              )}
-              {assetMindMaps.length > 0 ? (
-                <Button
-                  variant="success"
-                  leftIcon={<Network className="h-4 w-4 text-status-ready" />}
-                  onClick={() => navigate(`/mindmap/${assetMindMaps[0].id}`)}
-                >
-                  View mind map
-                </Button>
-              ) : (
-                <Button
-                  variant="secondary"
-                  leftIcon={<Network className="h-4 w-4" />}
-                  onClick={() => openGenerationModal(assetScope, 'mindmap')}
-                >
-                  Generate mind map
-                </Button>
-              )}
+              <Button
+                variant="secondary"
+                leftIcon={<Layers className="h-4 w-4" />}
+                onClick={() => openGenerationModal(assetScope, 'flashcards')}
+              >
+                Flashcards
+              </Button>
+              <Button
+                variant="secondary"
+                leftIcon={<ClipboardCheck className="h-4 w-4" />}
+                onClick={() => openGenerationModal(assetScope, 'quiz')}
+              >
+                Quiz
+              </Button>
+              <Button
+                variant="secondary"
+                leftIcon={<Network className="h-4 w-4" />}
+                onClick={() => openGenerationModal(assetScope, 'mindmap')}
+              >
+                Mind Map
+              </Button>
             </div>
           </div>
 
@@ -442,8 +413,13 @@ export default function AssetPage() {
           {!isReady && <StatusBadge status={asset.processingStatus} />}
         </div>
 
-        <h1 className="mt-2 text-2xl font-semibold text-text-primary">{asset.title}</h1>
-        <p className="mt-1 text-sm text-text-secondary">{asset.sourceLabel}</p>
+        <div className="mt-2 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-text-primary">{asset.title}</h1>
+            <p className="mt-1 text-sm text-text-secondary">{asset.sourceLabel}</p>
+          </div>
+          {assetId && <NotesButton level="material" id={assetId} scopeName={asset.title} />}
+        </div>
 
         {/* KPIs */}
         {isReady && (

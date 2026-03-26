@@ -100,8 +100,7 @@ export function AssetCard({
       <div
         role="link"
         tabIndex={0}
-        className="cursor-pointer rounded-lg border border-border bg-background transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        style={{ borderLeft: `4px solid ${accentColors[asset.type]}` }}
+        className="group flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 shadow-sm transition-all hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         onClick={() => navigate(`/assets/${asset.id}`)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -110,56 +109,41 @@ export function AssetCard({
           }
         }}
       >
-        <div className="flex items-start gap-3 p-4">
-          {/* Type icon */}
-          <span className="mt-0.5 text-text-secondary">
-            <TypeIcon type={asset.type} />
-          </span>
+        {/* Type accent dot + icon */}
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md"
+          style={{ backgroundColor: `${accentColors[asset.type]}15`, color: accentColors[asset.type] }}
+        >
+          <TypeIcon type={asset.type} />
+        </span>
 
-          {/* Content */}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <AssetBadge assetType={asset.type} />
-              {!isReady && <StatusBadge status={asset.processingStatus} />}
-            </div>
-
-            <p className="mt-1.5 truncate text-sm font-medium text-text-primary">
+        {/* Title + meta */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-medium text-text-primary">
               {asset.title}
             </p>
-
-            <p className="mt-1 text-xs text-text-secondary">
-              {hasStudied ? (
-                <>
-                  Flashcards: {kpis.flashcardAccuracy != null ? `${kpis.flashcardAccuracy}%` : '--'}
-                  {' \u00B7 '}
-                  Quiz: {kpis.quizBestScore != null ? `${kpis.quizBestScore}%` : '--'}
-                  {' \u00B7 '}
-                  Last studied {formatLastStudied(kpis.lastStudiedAt)}
-                </>
-              ) : (
-                'Not studied yet \u2014 ready when you are.'
-              )}
-            </p>
+            {!isReady && <StatusBadge status={asset.processingStatus} />}
           </div>
-
-          {/* Menu — stop propagation so clicks don't navigate */}
-          {menuItems.length > 0 && (
-            <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-              <DropdownMenu
-                trigger={
-                  <button
-                    type="button"
-                    className="rounded-full p-1 text-text-secondary hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                    aria-label={`Actions for ${asset.title}`}
-                  >
-                    <ThreeDotsIcon />
-                  </button>
-                }
-                items={menuItems}
-              />
-            </div>
-          )}
+          <p className="mt-0.5 text-xs text-text-disabled">
+            {hasStudied ? (
+              <>
+                Flashcards: {kpis.flashcardAccuracy != null ? `${kpis.flashcardAccuracy}%` : '--'}
+                {' \u00B7 '}
+                Quiz: {kpis.quizBestScore != null ? `${kpis.quizBestScore}%` : '--'}
+                {' \u00B7 '}
+                {formatLastStudied(kpis.lastStudiedAt)}
+              </>
+            ) : (
+              <AssetBadge assetType={asset.type} />
+            )}
+          </p>
         </div>
+
+        {/* Chevron hint */}
+        <svg className="h-4 w-4 shrink-0 text-text-disabled" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </div>
 
       {/* Rename dialog */}

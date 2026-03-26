@@ -901,6 +901,22 @@ export async function getQuizSessions(
   return clone(qzSessions.filter((s) => s.quizId === quizId))
 }
 
+export async function getAllFlashcardSessions(
+  setIds: string[]
+): Promise<FlashcardSession[]> {
+  await delay()
+  const idSet = new Set(setIds)
+  return clone(fcSessions.filter((s) => idSet.has(s.setId)))
+}
+
+export async function getAllQuizSessions(
+  quizIds: string[]
+): Promise<QuizSession[]> {
+  await delay()
+  const idSet = new Set(quizIds)
+  return clone(qzSessions.filter((s) => idSet.has(s.quizId)))
+}
+
 export async function saveQuizProgress(
   quizId: string,
   partial: unknown

@@ -20,7 +20,7 @@ interface AddAssetModalProps {
 }
 
 const TAB_OPTIONS = [
-  { id: 'panopto', label: 'Panopto' },
+  { id: 'panopto', label: 'Your Videos' },
   { id: 'upload', label: 'Upload' },
 ]
 
@@ -161,8 +161,8 @@ export function AddAssetModal({
         {/* Tabs */}
         <Tabs tabs={TAB_OPTIONS} activeTab={activeTab} onChange={setActiveTab} />
 
-        {/* Folio selector — pick existing or type a new name */}
-        <div>
+        {/* Folio selector — hidden when opened from within a folio */}
+        {!defaultTopicId && <div>
           <label
             htmlFor="asset-topic"
             className="mb-1.5 block text-sm font-medium text-text-primary"
@@ -213,7 +213,7 @@ export function AddAssetModal({
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           )}
-        </div>
+        </div>}
 
         {/* Study Set selector (optional, shown when topic selected) */}
         {topicId && (

@@ -16,6 +16,7 @@ import { CreateTopicDialog } from '../components/topic/CreateTopicDialog'
 import { AddAssetModal } from '../components/asset/AddAssetModal'
 import { CreateStudySetDialog } from '../components/studyset/CreateStudySetDialog'
 import { Layers, ClipboardCheck, Network } from 'lucide-react'
+import { NotesButton } from '../components/ui/NotesButton'
 import { AiChatFab } from '../components/chat/AiChatFab'
 import { AiChatPanel } from '../components/chat/AiChatPanel'
 import { useToast } from '../context/ToastContext'
@@ -36,6 +37,11 @@ import {
   listAllFlashcardSetsForTopic,
   listAllQuizzesForTopic,
   listAllMindMapsForTopic,
+  generateFlashcardSet,
+  generateQuiz,
+  generateMindMap,
+  getAllFlashcardSessions,
+  getAllQuizSessions,
 } from '../services/mockApi'
 import type {
   Topic,
@@ -44,7 +50,9 @@ import type {
   TopicKPI,
   AssetKPI,
   FlashcardSet,
+  FlashcardSession,
   Quiz,
+  QuizSession,
   MindMap,
   ModalityType,
   GenerationScope,
@@ -55,7 +63,7 @@ import type {
 /* ------------------------------------------------------------------ */
 
 const FILTER_OPTIONS = [
-  { id: 'all', label: 'All' },
+  { id: 'all', label: 'All Content' },
   { id: 'assets', label: 'Materials' },
   { id: 'studysets', label: 'Study Sets' },
   { id: 'flashcards', label: 'Flashcards' },
@@ -71,23 +79,39 @@ const FILTER_OPTIONS = [
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-function scopeLabel(
-  scope: GenerationScope,
-  assetMap: Record<string, string>,
-  ktMap: Record<string, string>,
-): string {
+function ScopeBreadcrumb({
+  scope,
+  assetMap,
+  ktMap,
+  topicName,
+}: {
+  scope: GenerationScope
+  assetMap: Record<string, string>
+  ktMap: Record<string, string>
+  topicName: string
+}) {
+  const sep = <span className="text-text-disabled" aria-hidden="true">/</span>
+  const crumb = (text: string) => (
+    <span className="truncate max-w-[120px]" title={text}>{text}</span>
+  )
+
   switch (scope.level) {
     case 'topic':
-      return 'Entire folio'
+      return <span className="inline-flex items-center gap-1 text-[11px] text-text-secondary">{crumb(topicName)}</span>
     case 'studyset':
-      return 'Study set'
+      return <span className="inline-flex items-center gap-1 text-[11px] text-text-secondary">{crumb(topicName)} {sep} Study Set</span>
     case 'asset':
-      return assetMap[scope.assetId] ?? 'Asset'
-    case 'kt': {
-      const assetName = assetMap[scope.assetId] ?? 'Asset'
-      const ktName = ktMap[scope.ktId] ?? 'Touchpoint'
-      return `${assetName} › ${ktName}`
-    }
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] text-text-secondary">
+          {crumb(topicName)} {sep} {crumb(assetMap[scope.assetId] ?? 'Material')}
+        </span>
+      )
+    case 'kt':
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] text-text-secondary">
+          {crumb(topicName)} {sep} {crumb(assetMap[scope.assetId] ?? 'Material')} {sep} {crumb(ktMap[scope.ktId] ?? 'KT')}
+        </span>
+      )
   }
 }
 
@@ -130,6 +154,8 @@ export default function TopicPage() {
   const [allFlashcardSets, setAllFlashcardSets] = useState<FlashcardSet[]>([])
   const [allQuizzes, setAllQuizzes] = useState<Quiz[]>([])
   const [allMindMaps, setAllMindMaps] = useState<MindMap[]>([])
+  const [fcSessionMap, setFcSessionMap] = useState<Record<string, { lastPlayed: string; accuracy: number }>>({})
+  const [qzSessionMap, setQzSessionMap] = useState<Record<string, { lastPlayed: string; bestScore: number }>>({})
 
   // UI state
   const [isLoading, setIsLoading] = useState(true)
@@ -146,6 +172,7 @@ export default function TopicPage() {
     isOpen: boolean
     modalityType: ModalityType
   }>({ isOpen: false, modalityType: 'flashcards' })
+  const [generating, setGenerating] = useState<ModalityType | null>(null)
 
   // + New dialog state
   const [createTopicOpen, setCreateTopicOpen] = useState(false)
@@ -195,6 +222,35 @@ export default function TopicPage() {
           }),
       )
       setAssetKpiMap(Object.fromEntries(kpiEntries))
+
+      // Fetch session stats for flashcard sets and quizzes
+      const allFcIds = allFS.map((fs: FlashcardSet) => fs.id)
+      const allQzIds = allQ.map((q: Quiz) => q.id)
+      const [fcSessions, qzSessions] = await Promise.all([
+        allFcIds.length > 0 ? getAllFlashcardSessions(allFcIds) : Promise.resolve([]),
+        allQzIds.length > 0 ? getAllQuizSessions(allQzIds) : Promise.resolve([]),
+      ])
+
+      const fcMap: Record<string, { lastPlayed: string; accuracy: number }> = {}
+      for (const s of fcSessions as FlashcardSession[]) {
+        const prev = fcMap[s.setId]
+        if (!prev || new Date(s.completedAt) > new Date(prev.lastPlayed)) {
+          fcMap[s.setId] = { lastPlayed: s.completedAt, accuracy: s.accuracy }
+        }
+      }
+      setFcSessionMap(fcMap)
+
+      const qzMap: Record<string, { lastPlayed: string; bestScore: number }> = {}
+      for (const s of qzSessions as QuizSession[]) {
+        const prev = qzMap[s.quizId]
+        if (!prev) {
+          qzMap[s.quizId] = { lastPlayed: s.completedAt, bestScore: s.score }
+        } else {
+          if (s.score > prev.bestScore) qzMap[s.quizId].bestScore = s.score
+          if (new Date(s.completedAt) > new Date(prev.lastPlayed)) qzMap[s.quizId].lastPlayed = s.completedAt
+        }
+      }
+      setQzSessionMap(qzMap)
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Failed to load folio. Please try again.',
@@ -303,18 +359,44 @@ export default function TopicPage() {
     setGenerationModal((prev) => ({ ...prev, isOpen: false }))
   }, [])
 
+  // Generate with defaults and navigate directly
+  const generateAndGo = useCallback(async (modality: ModalityType) => {
+    if (!topicId) return
+    setGenerating(modality)
+    const scope = { level: 'topic' as const, topicId }
+    try {
+      if (modality === 'flashcards') {
+        const set = await generateFlashcardSet(scope)
+        await fetchData()
+        navigate(`/flashcards/${set.id}/session`)
+      } else if (modality === 'quiz') {
+        const quiz = await generateQuiz(scope)
+        await fetchData()
+        navigate(`/quiz/${quiz.id}/session`)
+      } else {
+        const mm = await generateMindMap(scope)
+        await fetchData()
+        navigate(`/mindmap/${mm.id}`)
+      }
+    } catch {
+      toast.error(`Failed to generate ${modality}`)
+    } finally {
+      setGenerating(null)
+    }
+  }, [topicId, fetchData, navigate, toast])
+
   /* ---------------------------------------------------------------- */
   /*  Derived                                                          */
   /* ---------------------------------------------------------------- */
 
-  const readyAssets = assets.filter((a) => a.processingStatus === 'ready')
+  const readyAssets = assets.filter((a) => a.processingStatus === 'ready' && !a.isSynthesis)
   const hasReadyAssets = readyAssets.length > 0
 
   const showAssets = filter === 'all' || filter === 'assets'
   const showStudySets = filter === 'all' || filter === 'studysets'
-  const showFlashcards = filter === 'flashcards'
-  const showQuizzes = filter === 'quizzes'
-  const showMindMaps = filter === 'mindmaps'
+  const showFlashcards = filter === 'all' || filter === 'flashcards'
+  const showQuizzes = filter === 'all' || filter === 'quizzes'
+  const showMindMaps = filter === 'all' || filter === 'mindmaps'
 
   const generationScope: GenerationScope | null = topicId
     ? { level: 'topic', topicId }
@@ -434,6 +516,7 @@ export default function TopicPage() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {topicId && <NotesButton level="folio" id={topicId} scopeName={topic.name} />}
             <DropdownMenu
               trigger={
                 <button
@@ -481,73 +564,47 @@ export default function TopicPage() {
           </div>
         )}
 
-        {/* Study actions */}
-        <div className="mt-5 flex flex-wrap gap-3 border-t border-border pt-5">
-          {flashcardSets.length > 0 ? (
-            <Button
-              variant="success"
-              size="sm"
-              onClick={() => navigate(`/flashcards/${flashcardSets[0].id}/session`)}
-            >
-              Study flashcards
-            </Button>
-          ) : (
+        {/* Study this folio panel */}
+        <div className="mt-5 rounded-xl border border-border bg-primary-tint p-5">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-forest">
+            Study this folio
+          </h2>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Button
               variant="secondary"
-              size="sm"
               disabled={!hasReadyAssets}
+              leftIcon={<Layers className="h-4 w-4" />}
               onClick={() => openGenerationModal('flashcards')}
             >
-              Generate flashcards
+              Flashcards
             </Button>
-          )}
-          {quizList.length > 0 ? (
-            <Button
-              variant="success"
-              size="sm"
-              onClick={() => navigate(`/quiz/${quizList[0].id}/session`)}
-            >
-              Take quiz
-            </Button>
-          ) : (
             <Button
               variant="secondary"
-              size="sm"
               disabled={!hasReadyAssets}
+              leftIcon={<ClipboardCheck className="h-4 w-4" />}
               onClick={() => openGenerationModal('quiz')}
             >
-              Generate quiz
+              Quiz
             </Button>
-          )}
-          {mindMapList.length > 0 ? (
-            <Button
-              variant="success"
-              size="sm"
-              onClick={() => navigate(`/mindmap/${mindMapList[0].id}`)}
-            >
-              View mind map
-            </Button>
-          ) : (
             <Button
               variant="secondary"
-              size="sm"
               disabled={!hasReadyAssets}
+              leftIcon={<Network className="h-4 w-4" />}
               onClick={() => openGenerationModal('mindmap')}
             >
-              Generate mind map
+              Mind Map
             </Button>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* View toggle + filter */}
-      <div className="mt-6 flex items-center justify-between gap-4">
+      {/* Filter chips + New */}
+      <div className="mt-10 flex items-center justify-between gap-4">
         <FilterChips
           options={FILTER_OPTIONS}
           selected={filter}
           onChange={setFilter}
         />
-
         <DropdownMenu
           trigger={
             <Button
@@ -571,32 +628,6 @@ export default function TopicPage() {
 
       {/* Content area */}
       <div className="mt-6 space-y-8">
-        {/* Assets */}
-        {showAssets && assets.length > 0 && (
-          <section>
-            <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">
-              Learning Materials
-            </h2>
-            <div
-              className={
-                viewMode === 'grid'
-                  ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3'
-                  : 'flex flex-col gap-3'
-              }
-            >
-              {assets.map((asset) => (
-                <AssetCard
-                  key={asset.id}
-                  asset={asset}
-                  kpis={assetKpiMap[asset.id]}
-                  onRename={handleRenameAsset}
-                  onDelete={handleDeleteAsset}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* Study Sets */}
         {showStudySets && studySets.length > 0 && (
           <section>
@@ -622,8 +653,34 @@ export default function TopicPage() {
           </section>
         )}
 
+        {/* Learning Materials */}
+        {showAssets && assets.length > 0 && (
+          <section>
+            <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">
+              Learning Materials
+            </h2>
+            <div
+              className={
+                viewMode === 'grid'
+                  ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3'
+                  : 'flex flex-col gap-3'
+              }
+            >
+              {assets.map((asset) => (
+                <AssetCard
+                  key={asset.id}
+                  asset={asset}
+                  kpis={assetKpiMap[asset.id]}
+                  onRename={handleRenameAsset}
+                  onDelete={handleDeleteAsset}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Flashcard Sets (all levels) */}
-        {showFlashcards && (
+        {showFlashcards && allFlashcardSets.length > 0 && (
           <section>
             <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">
               Flashcard Sets
@@ -647,12 +704,15 @@ export default function TopicPage() {
                         {fs.title}
                       </p>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-text-secondary">
-                          {scopeLabel(fs.scope, assetNameMap, ktNameMap)}
-                        </span>
+                        <ScopeBreadcrumb scope={fs.scope} assetMap={assetNameMap} ktMap={ktNameMap} topicName={topic.name} />
                         <span className="text-xs text-text-disabled">
-                          {fs.cards.length} cards &middot; {formatDate(fs.createdAt)}
+                          {fs.cards.length} cards
                         </span>
+                        {fcSessionMap[fs.id] && (
+                          <span className="text-xs text-text-disabled">
+                            &middot; {Math.round(fcSessionMap[fs.id].accuracy * 100)}% accuracy &middot; {formatLastStudied(fcSessionMap[fs.id].lastPlayed)}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <Button
@@ -670,7 +730,7 @@ export default function TopicPage() {
         )}
 
         {/* Quizzes (all levels) */}
-        {showQuizzes && (
+        {showQuizzes && allQuizzes.length > 0 && (
           <section>
             <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">
               Quizzes
@@ -694,12 +754,15 @@ export default function TopicPage() {
                         {q.title}
                       </p>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-text-secondary">
-                          {scopeLabel(q.scope, assetNameMap, ktNameMap)}
-                        </span>
+                        <ScopeBreadcrumb scope={q.scope} assetMap={assetNameMap} ktMap={ktNameMap} topicName={topic.name} />
                         <span className="text-xs text-text-disabled">
-                          {q.questions.length} questions &middot; {formatDate(q.createdAt)}
+                          {q.questions.length} questions
                         </span>
+                        {qzSessionMap[q.id] && (
+                          <span className="text-xs text-text-disabled">
+                            &middot; Best: {Math.round(qzSessionMap[q.id].bestScore * 100)}% &middot; {formatLastStudied(qzSessionMap[q.id].lastPlayed)}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <Button
@@ -717,7 +780,7 @@ export default function TopicPage() {
         )}
 
         {/* Mind Maps (all levels) */}
-        {showMindMaps && (
+        {showMindMaps && allMindMaps.length > 0 && (
           <section>
             <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">
               Mind Maps
@@ -741,9 +804,7 @@ export default function TopicPage() {
                         {mm.title}
                       </p>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-text-secondary">
-                          {scopeLabel(mm.scope, assetNameMap, ktNameMap)}
-                        </span>
+                        <ScopeBreadcrumb scope={mm.scope} assetMap={assetNameMap} ktMap={ktNameMap} topicName={topic.name} />
                         <span className="text-xs text-text-disabled">
                           {mm.nodes.length} nodes &middot; {formatDate(mm.createdAt)}
                         </span>
@@ -822,6 +883,7 @@ export default function TopicPage() {
         isOpen={addAssetOpen}
         onClose={() => setAddAssetOpen(false)}
         onAdded={fetchData}
+        defaultTopicId={topicId}
       />
 
       {topicId && (

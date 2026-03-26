@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { DropdownMenu } from '../ui/DropdownMenu'
 import { RenameDialog } from '../ui/RenameDialog'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
@@ -33,6 +33,7 @@ export function StudySetCard({
   onRename,
   onDelete,
 }: StudySetCardProps) {
+  const navigate = useNavigate()
   const [renameOpen, setRenameOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
@@ -53,10 +54,19 @@ export function StudySetCard({
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-background overflow-hidden transition-shadow hover:shadow-md">
-        {/* Accent top bar */}
-        <div className="h-1 bg-gradient-to-r from-primary to-forest" />
-
+      <div
+        role="link"
+        tabIndex={0}
+        className="cursor-pointer rounded-lg border border-border bg-background transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        style={{ borderLeft: '4px solid var(--color-primary)' }}
+        onClick={() => navigate(`/topics/${studySet.topicId}/study-sets/${studySet.id}`)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            navigate(`/topics/${studySet.topicId}/study-sets/${studySet.id}`)
+          }
+        }}
+      >
         <div className="p-4">
           <div className="flex items-start gap-3">
             {/* Icon badge */}
@@ -66,12 +76,9 @@ export function StudySetCard({
 
             {/* Content */}
             <div className="min-w-0 flex-1">
-              <Link
-                to={`/topics/${studySet.topicId}/study-sets/${studySet.id}`}
-                className="block truncate text-sm font-semibold text-text-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
+              <p className="truncate text-sm font-semibold text-text-primary">
                 {studySet.name}
-              </Link>
+              </p>
 
               <div className="mt-1.5 flex items-center gap-2">
                 <span className="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-text-secondary">
@@ -81,19 +88,6 @@ export function StudySetCard({
               </div>
             </div>
 
-            {/* Menu */}
-            <DropdownMenu
-              trigger={
-                <button
-                  type="button"
-                  className="rounded-full p-1 text-text-secondary hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                  aria-label={`Actions for ${studySet.name}`}
-                >
-                  <ThreeDotsIcon />
-                </button>
-              }
-              items={menuItems}
-            />
           </div>
         </div>
       </div>

@@ -19,6 +19,7 @@ import type {
   MindMap,
 } from '../types/domain'
 import { Layers, ClipboardCheck, Network } from 'lucide-react'
+import { NotesButton } from '../components/ui/NotesButton'
 import { useToast } from '../context/ToastContext'
 import { Button } from '../components/ui/Button'
 import { Skeleton } from '../components/ui/Skeleton'
@@ -340,14 +341,19 @@ export default function StudySetPage() {
           </ol>
         </nav>
 
-        <div className="flex items-center gap-2 text-text-secondary">
-          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path d="M3.196 12.87l6.4 3.56a.75.75 0 00.708 0l6.4-3.56a.75.75 0 00-.354-1.42H3.55a.75.75 0 00-.354 1.42z" />
-            <path d="M3.196 8.87l6.4 3.56a.75.75 0 00.708 0l6.4-3.56a.75.75 0 000-1.32l-6.4-3.56a.75.75 0 00-.708 0l-6.4 3.56a.75.75 0 000 1.32z" />
-          </svg>
-          <p className="text-xs font-medium uppercase tracking-wide">Study Set</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-text-secondary">
+              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M3.196 12.87l6.4 3.56a.75.75 0 00.708 0l6.4-3.56a.75.75 0 00-.354-1.42H3.55a.75.75 0 00-.354 1.42z" />
+                <path d="M3.196 8.87l6.4 3.56a.75.75 0 00.708 0l6.4-3.56a.75.75 0 000-1.32l-6.4-3.56a.75.75 0 00-.708 0l-6.4 3.56a.75.75 0 000 1.32z" />
+              </svg>
+              <p className="text-xs font-medium uppercase tracking-wide">Study Set</p>
+            </div>
+            <h1 className="mt-1 text-2xl font-semibold text-text-primary">{studySet.name}</h1>
+          </div>
+          {setId && <NotesButton level="studyset" id={setId} scopeName={studySet.name} />}
         </div>
-        <h1 className="mt-1 text-2xl font-semibold text-text-primary">{studySet.name}</h1>
         {setAssets.length > 0 && (
           <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
             {setAssets.map((a) => (
@@ -422,57 +428,27 @@ export default function StudySetPage() {
                 Study this set
               </h2>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {ssFlashcardSets.length > 0 ? (
-                  <Button
-                    variant="success"
-                    leftIcon={<Layers className="h-4 w-4 text-status-ready" />}
-                    onClick={() => navigate(`/flashcards/${ssFlashcardSets[0].id}/session`)}
-                  >
-                    Study flashcards
-                  </Button>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    leftIcon={<Layers className="h-4 w-4" />}
-                    onClick={() => openGenerationModal(studySetScope, 'flashcards')}
-                  >
-                    Generate flashcards
-                  </Button>
-                )}
-                {ssQuizzes.length > 0 ? (
-                  <Button
-                    variant="success"
-                    leftIcon={<ClipboardCheck className="h-4 w-4 text-status-ready" />}
-                    onClick={() => navigate(`/quiz/${ssQuizzes[0].id}/session`)}
-                  >
-                    Take quiz
-                  </Button>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    leftIcon={<ClipboardCheck className="h-4 w-4" />}
-                    onClick={() => openGenerationModal(studySetScope, 'quiz')}
-                  >
-                    Generate quiz
-                  </Button>
-                )}
-                {ssMindMaps.length > 0 ? (
-                  <Button
-                    variant="success"
-                    leftIcon={<Network className="h-4 w-4 text-status-ready" />}
-                    onClick={() => navigate(`/mindmap/${ssMindMaps[0].id}`)}
-                  >
-                    View mind map
-                  </Button>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    leftIcon={<Network className="h-4 w-4" />}
-                    onClick={() => openGenerationModal(studySetScope, 'mindmap')}
-                  >
-                    Generate mind map
-                  </Button>
-                )}
+                <Button
+                  variant="secondary"
+                  leftIcon={<Layers className="h-4 w-4" />}
+                  onClick={() => openGenerationModal(studySetScope, 'flashcards')}
+                >
+                  Flashcards
+                </Button>
+                <Button
+                  variant="secondary"
+                  leftIcon={<ClipboardCheck className="h-4 w-4" />}
+                  onClick={() => openGenerationModal(studySetScope, 'quiz')}
+                >
+                  Quiz
+                </Button>
+                <Button
+                  variant="secondary"
+                  leftIcon={<Network className="h-4 w-4" />}
+                  onClick={() => openGenerationModal(studySetScope, 'mindmap')}
+                >
+                  Mind Map
+                </Button>
               </div>
             </div>
 
