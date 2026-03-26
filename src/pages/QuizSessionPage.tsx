@@ -250,7 +250,7 @@ export default function QuizSessionPage() {
     if (!quiz || resultsFinalized) return
 
     const totalCorrect = answers.filter((a) => a.correct).length
-    const score = Math.round((totalCorrect / quiz.questions.length) * 100)
+    const score = totalCorrect / quiz.questions.length
     const totalTime = elapsedSec + elapsedOffset.current
 
     try {

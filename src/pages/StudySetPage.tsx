@@ -5,6 +5,8 @@ import {
   getStudySetDetail,
   listAssets,
   updateStudySet,
+  renameStudySet,
+  deleteStudySet,
 } from '../services/mockApi'
 import type {
   StudySet,
@@ -19,7 +21,10 @@ import { Button } from '../components/ui/Button'
 import { Skeleton } from '../components/ui/Skeleton'
 import { InlineError } from '../components/ui/InlineError'
 import { KnowledgeTouchpointCard } from '../components/asset/KnowledgeTouchpointCard'
-import { AssetBadge, StatusBadge } from '../components/ui/Badge'
+import { StatusBadge } from '../components/ui/Badge'
+import { DropdownMenu } from '../components/ui/DropdownMenu'
+import { RenameDialog } from '../components/ui/RenameDialog'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Modal } from '../components/ui/Modal'
 import { GenerationModal } from '../components/asset/GenerationModal'
 import { AiChatFab } from '../components/chat/AiChatFab'
@@ -174,6 +179,8 @@ export default function StudySetPage() {
 
   // UI state
   const [editModalOpen, setEditModalOpen] = useState(false)
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   // Chat state (open by default)
   const [chatOpen, setChatOpen] = useState(true)
@@ -222,6 +229,28 @@ export default function StudySetPage() {
       fetchData()
     } catch {
       toast.error('Failed to update study set')
+    }
+  }
+
+  async function handleRename(newName: string) {
+    if (!setId) return
+    try {
+      const updated = await renameStudySet(setId, newName)
+      setStudySet(updated)
+      toast.success('Study set renamed')
+    } catch {
+      toast.error('Failed to rename study set')
+    }
+  }
+
+  async function handleDelete() {
+    if (!setId) return
+    try {
+      await deleteStudySet(setId)
+      toast.success('Study set deleted')
+      navigate(topicId ? `/topics/${topicId}` : '/')
+    } catch {
+      toast.error('Failed to delete study set')
     }
   }
 
@@ -298,7 +327,7 @@ export default function StudySetPage() {
       <div className="flex-1 overflow-y-auto p-6">
       <div className="mx-auto max-w-5xl">
       {/* Header */}
-      <div className="rounded-lg border border-border bg-background p-6">
+      <div className="rounded-xl border border-border bg-gradient-to-br from-background to-surface p-6">
         {/* Breadcrumb */}
         <nav aria-label="Breadcrumb" className="mb-4">
           <ol className="flex flex-wrap items-center gap-1 text-sm text-text-secondary">
@@ -332,63 +361,94 @@ export default function StudySetPage() {
             </div>
             <h1 className="mt-1 text-2xl font-semibold text-text-primary">{studySet.name}</h1>
           </div>
-          {setId && <NotesButton level="studyset" id={setId} scopeName={studySet.name} />}
+          <div className="flex items-center gap-2 shrink-0">
+            {setId && <NotesButton level="studyset" id={setId} scopeName={studySet.name} />}
+            <DropdownMenu
+              trigger={
+                <button
+                  type="button"
+                  className="rounded-full p-1.5 text-text-secondary hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  aria-label="Study set actions"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
+                  </svg>
+                </button>
+              }
+              items={[
+                { label: 'Rename', onClick: () => setRenameOpen(true) },
+                { label: 'Edit materials', onClick: () => setEditModalOpen(true) },
+                { label: 'Delete', onClick: () => setDeleteConfirmOpen(true), danger: true },
+              ]}
+            />
+          </div>
         </div>
-        {setAssets.length > 0 && (
-          <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-            {setAssets.map((a) => (
-              <li key={a.id} className="text-sm text-text-secondary">
-                {a.title}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
 
-      {/* Learning Materials */}
-      <div className="mt-6 rounded-lg border border-border bg-background px-5 py-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-text-primary">
-            {setAssets.length} Learning Material{setAssets.length !== 1 ? 's' : ''}
-          </h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setEditModalOpen(true)}
-          >
-            Edit
-          </Button>
+        {/* Included materials */}
+        <div className="mt-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+            {setAssets.length} Material{setAssets.length !== 1 ? 's' : ''} included
+          </p>
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="mt-2 flex flex-col gap-1.5">
           {setAssets.map((asset) => (
             <button
               key={asset.id}
               type="button"
               onClick={() => navigate(`/assets/${asset.id}?fromSet=${studySet?.id}&topicId=${topicId}`)}
-              className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-left transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              style={{ borderLeftWidth: 3, borderLeftColor: accentColors[asset.type] }}
+              className="flex items-center gap-2.5 rounded-lg border border-border px-3 py-2 text-left transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
-              <span className="text-text-secondary">
+              <span
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded"
+                style={{ backgroundColor: `${accentColors[asset.type]}15`, color: accentColors[asset.type] }}
+              >
                 <CompactTypeIcon type={asset.type} />
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary">
+              <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
                 {asset.title}
               </span>
-              <AssetBadge assetType={asset.type} />
               {asset.processingStatus !== 'ready' && (
                 <StatusBadge status={asset.processingStatus} />
               )}
             </button>
           ))}
         </div>
+
+        {/* Study this set */}
+        {synthesisReady && kts.length > 0 && (
+          <div className="mt-5 rounded-xl border border-border bg-primary-tint p-5">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-forest">
+              Study this set
+            </h2>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Button
+                variant="secondary"
+                leftIcon={<Layers className="h-4 w-4" />}
+                onClick={() => openGenerationModal(studySetScope, 'flashcards')}
+              >
+                Flashcards
+              </Button>
+              <Button
+                variant="secondary"
+                leftIcon={<ClipboardCheck className="h-4 w-4" />}
+                onClick={() => openGenerationModal(studySetScope, 'quiz')}
+              >
+                Quiz
+              </Button>
+              <Button
+                variant="secondary"
+                leftIcon={<Network className="h-4 w-4" />}
+                onClick={() => openGenerationModal(studySetScope, 'mindmap')}
+              >
+                Mind Map
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Knowledge Touchpoints section */}
-      <div className="mt-6">
-        <h2 className="mb-4 text-lg font-semibold text-text-primary">
-          Knowledge Touchpoints
-        </h2>
-
+      <div className="mt-8">
         {someProcessing && (
           <div
             className="mb-4 rounded-lg border border-status-pending/30 bg-status-pending/10 px-4 py-3"
@@ -402,35 +462,6 @@ export default function StudySetPage() {
 
         {synthesisReady && kts.length > 0 ? (
           <>
-            {/* Study aid generation / study panel */}
-            <div className="mb-8 rounded-xl border border-border bg-primary-tint p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-forest">
-                Study this set
-              </h2>
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <Button
-                  variant="secondary"
-                  leftIcon={<Layers className="h-4 w-4" />}
-                  onClick={() => openGenerationModal(studySetScope, 'flashcards')}
-                >
-                  Flashcards
-                </Button>
-                <Button
-                  variant="secondary"
-                  leftIcon={<ClipboardCheck className="h-4 w-4" />}
-                  onClick={() => openGenerationModal(studySetScope, 'quiz')}
-                >
-                  Quiz
-                </Button>
-                <Button
-                  variant="secondary"
-                  leftIcon={<Network className="h-4 w-4" />}
-                  onClick={() => openGenerationModal(studySetScope, 'mindmap')}
-                >
-                  Mind Map
-                </Button>
-              </div>
-            </div>
 
             {/* KT cards */}
             <h2 className="text-lg font-semibold text-text-primary mb-2">Knowledge Touchpoints</h2>
@@ -494,6 +525,25 @@ export default function StudySetPage() {
         topicId={studySet.topicId}
         currentAssetIds={studySet.assetIds}
         onSave={handleUpdateAssets}
+      />
+
+      <RenameDialog
+        isOpen={renameOpen}
+        onClose={() => setRenameOpen(false)}
+        onRename={handleRename}
+        currentName={studySet.name}
+        title="Rename study set"
+        label="Name"
+      />
+
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete study set"
+        message={`Are you sure you want to delete "${studySet.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
       />
 
       {/* Generation modal */}

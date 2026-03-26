@@ -122,7 +122,7 @@ export default function FlashcardSessionPage() {
     if (phase !== 'results' || savedSession || !flashcardSet || results.length === 0) return
 
     const correct = results.filter((r) => r.correct).length
-    const accuracy = Math.round((correct / results.length) * 100)
+    const accuracy = correct / results.length
 
     saveFlashcardSession({
       setId: flashcardSet.id,
@@ -255,7 +255,7 @@ export default function FlashcardSessionPage() {
     // Update saved session with confidence + reflection
     if (flashcardSet && savedSession) {
       const correct = results.filter((r) => r.correct).length
-      const accuracy = Math.round((correct / results.length) * 100)
+      const accuracy = correct / results.length
       saveFlashcardSession({
         setId: flashcardSet.id,
         scope: flashcardSet.scope,

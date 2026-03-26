@@ -5,6 +5,8 @@ import {
   getAssetDetail,
   getAssetKPIs,
   retryAssetProcessing,
+  renameAsset,
+  removeAsset,
   getTopicDetail,
   getStudySetDetail,
 } from '../services/mockApi'
@@ -24,6 +26,9 @@ import { AiChatFab } from '../components/chat/AiChatFab'
 import { AiChatPanel } from '../components/chat/AiChatPanel'
 import { GenerationModal } from '../components/asset/GenerationModal'
 import { NotesButton } from '../components/ui/NotesButton'
+import { DropdownMenu } from '../components/ui/DropdownMenu'
+import { RenameDialog } from '../components/ui/RenameDialog'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { ResizableDrawer } from '../components/ui/ResizableDrawer'
 
 /* ------------------------------------------------------------------ */
@@ -118,6 +123,8 @@ export default function AssetPage() {
   const [activeCitation, setActiveCitation] = useState<Citation | undefined>()
 
   const [chatOpen, setChatOpen] = useState(true)
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   // Generation modal state
   const [genModalOpen, setGenModalOpen] = useState(false)
   const [genScope, setGenScope] = useState<GenerationScope | null>(null)
@@ -204,6 +211,28 @@ export default function AssetPage() {
     setGenModality(modality)
     setGenScopeTitle(scopeTitle ?? asset?.title ?? 'Asset')
     setGenModalOpen(true)
+  }
+
+  async function handleRename(newTitle: string) {
+    if (!assetId) return
+    try {
+      const updated = await renameAsset(assetId, newTitle)
+      setAsset(updated)
+      toast.success('Material renamed')
+    } catch {
+      toast.error('Failed to rename material')
+    }
+  }
+
+  async function handleDelete() {
+    if (!assetId) return
+    try {
+      await removeAsset(assetId)
+      toast.success('Material deleted')
+      navigate(-1)
+    } catch {
+      toast.error('Failed to delete material')
+    }
   }
 
   function handleGenerationSuccess(result: { modalityType: string; id: string }) {
@@ -402,7 +431,26 @@ export default function AssetPage() {
             <h1 className="text-2xl font-semibold text-text-primary">{asset.title}</h1>
             <p className="mt-1 text-sm text-text-secondary">{asset.sourceLabel}</p>
           </div>
-          {assetId && <NotesButton level="material" id={assetId} scopeName={asset.title} />}
+          <div className="flex items-center gap-2 shrink-0">
+            {assetId && <NotesButton level="material" id={assetId} scopeName={asset.title} />}
+            <DropdownMenu
+              trigger={
+                <button
+                  type="button"
+                  className="rounded-full p-1.5 text-text-secondary hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  aria-label="Material actions"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
+                  </svg>
+                </button>
+              }
+              items={[
+                { label: 'Rename', onClick: () => setRenameOpen(true) },
+                { label: 'Delete', onClick: () => setDeleteConfirmOpen(true), danger: true },
+              ]}
+            />
+          </div>
         </div>
 
         {/* KPIs */}
@@ -473,6 +521,27 @@ export default function AssetPage() {
           <OriginalViewer asset={asset} activeCitation={activeCitation} />
         </ResizableDrawer>
       )}
+
+      {/* Rename / Delete dialogs */}
+      {asset && (
+        <RenameDialog
+          isOpen={renameOpen}
+          onClose={() => setRenameOpen(false)}
+          onRename={handleRename}
+          currentName={asset.title}
+          title="Rename material"
+          label="Title"
+        />
+      )}
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete material"
+        message={`Are you sure you want to delete "${asset?.title}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+      />
 
       {/* Generation modal */}
       {genModalOpen && genScope && genModality && (
