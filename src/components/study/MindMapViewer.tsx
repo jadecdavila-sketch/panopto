@@ -127,7 +127,6 @@ export function MindMapViewer({ mindMap, onNodeClick }: MindMapViewerProps) {
     return ids
   }, [mindMap.nodes])
 
-  const hasReviewNodes = reviewSet.size > 0
 
   /* ---------------------------------------------------------------- */
   /*  Pan handlers                                                     */

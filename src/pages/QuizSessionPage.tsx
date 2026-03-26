@@ -293,7 +293,6 @@ export default function QuizSessionPage() {
   // --- Derived ---
   const totalCorrect = answers.filter((a) => a.correct).length
   const score = answers.length > 0 ? Math.round((totalCorrect / answers.length) * 100) : 0
-  const totalThisSitting = totalStudiedThisSitting + answers.length
 
   const missedKtIds = answers.filter((a) => !a.correct).map((a) => a.ktId)
   const missedKTs = ktPoolRef.current.filter((k) => missedKtIds.includes(k.id))

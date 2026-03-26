@@ -71,7 +71,6 @@ export default function FlashcardSessionPage() {
   // --- Results state ---
   const [showCelebration, setShowCelebration] = useState(false)
   const [confidenceRating, setConfidenceRating] = useState<number | null>(null)
-  const [missedExpanded, setMissedExpanded] = useState(false)
 
   // --- Chat state (closed by default) ---
   const [chatOpen, setChatOpen] = useState(false)
@@ -229,7 +228,6 @@ export default function FlashcardSessionPage() {
     setIsFlipped(false)
     setBatchResults([])
     setConfidenceRating(null)
-    setMissedExpanded(false)
     setRoundNumber((r) => r + 1)
     setPhase('studying')
   }
@@ -259,7 +257,6 @@ export default function FlashcardSessionPage() {
   const correctCount = batchResults.filter((r) => r.correct).length
   const incorrectCount = batchResults.filter((r) => !r.correct).length
   const accuracy = batchResults.length > 0 ? Math.round((correctCount / batchResults.length) * 100) : 0
-  const totalThisSitting = totalStudiedThisSitting + batchResults.length
 
   const missedKtIds = batchResults
     .filter((r) => !r.correct)
