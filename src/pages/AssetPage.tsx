@@ -18,7 +18,6 @@ import { Button } from '../components/ui/Button'
 import { AssetBadge, StatusBadge } from '../components/ui/Badge'
 import { Skeleton } from '../components/ui/Skeleton'
 import { InlineError } from '../components/ui/InlineError'
-import { KPICard } from '../components/ui/KPICard'
 
 import { KnowledgeTouchpointCard } from '../components/asset/KnowledgeTouchpointCard'
 import { OriginalViewer } from '../components/asset/OriginalViewer'
@@ -238,9 +237,7 @@ export default function AssetPage() {
   function handleGenerationSuccess(result: { modalityType: string; id: string }) {
     setGenModalOpen(false)
     fetchData()
-    if (result.modalityType === 'flashcards') navigate(`/flashcards/${result.id}/session`)
-    else if (result.modalityType === 'quiz') navigate(`/quiz/${result.id}/session`)
-    else if (result.modalityType === 'mindmap') navigate(`/mindmap/${result.id}`)
+    if (result.modalityType === 'mindmap') navigate(`/mindmap/${result.id}`)
   }
 
   // Loading state
@@ -301,36 +298,6 @@ export default function AssetPage() {
 
       {isReady && (
         <>
-          {/* Asset-level study / generation panel */}
-          <div className="mb-8 rounded-xl border border-border bg-primary-tint p-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-forest">
-              Study this asset
-            </h2>
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Button
-                variant="secondary"
-                leftIcon={<Layers className="h-4 w-4" />}
-                onClick={() => openGenerationModal(assetScope, 'flashcards')}
-              >
-                Flashcards
-              </Button>
-              <Button
-                variant="secondary"
-                leftIcon={<ClipboardCheck className="h-4 w-4" />}
-                onClick={() => openGenerationModal(assetScope, 'quiz')}
-              >
-                Quiz
-              </Button>
-              <Button
-                variant="secondary"
-                leftIcon={<Network className="h-4 w-4" />}
-                onClick={() => openGenerationModal(assetScope, 'mindmap')}
-              >
-                Mind Map
-              </Button>
-            </div>
-          </div>
-
           {/* KT cards */}
           <h2 className="text-lg font-semibold text-text-primary mb-2">Knowledge Touchpoints</h2>
           <div className="flex flex-col gap-4">
@@ -340,20 +307,24 @@ export default function AssetPage() {
                 kt={kt}
                 citations={asset.citations}
                 onCitationClick={handleCitationClick}
-                onGenerateFlashcards={(ktId) =>
-                  openGenerationModal(
-                    { level: 'kt', ktId, assetId: asset.id },
-                    'flashcards',
-                    kt.heading,
-                  )
-                }
-                onGenerateQuiz={(ktId) =>
-                  openGenerationModal(
-                    { level: 'kt', ktId, assetId: asset.id },
-                    'quiz',
-                    kt.heading,
-                  )
-                }
+                onGenerateFlashcards={(ktId) => {
+                  const params = new URLSearchParams({
+                    scope: 'kt',
+                    ktId,
+                    assetId: asset.id,
+                    returnTo: `/assets/${asset.id}`,
+                  })
+                  navigate(`/study/flashcards?${params.toString()}`)
+                }}
+                onGenerateQuiz={(ktId) => {
+                  const params = new URLSearchParams({
+                    scope: 'kt',
+                    ktId,
+                    assetId: asset.id,
+                    returnTo: `/assets/${asset.id}`,
+                  })
+                  navigate(`/study/quiz?${params.toString()}`)
+                }}
                 onGenerateMindMap={(ktId) =>
                   openGenerationModal(
                     { level: 'kt', ktId, assetId: asset.id },
@@ -429,7 +400,23 @@ export default function AssetPage() {
         <div className="mt-2 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-text-primary">{asset.title}</h1>
-            <p className="mt-1 text-sm text-text-secondary">{asset.sourceLabel}</p>
+            <div className="mt-1 flex items-center gap-3">
+              <p className="text-sm text-text-secondary">{asset.sourceLabel}</p>
+              {isReady && (
+                <button
+                  type="button"
+                  onClick={() => setShowOriginal((v) => !v)}
+                  aria-pressed={showOriginal}
+                  className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+                    <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                  </svg>
+                  {showOriginal ? 'Hide original' : 'View original'}
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {assetId && <NotesButton level="material" id={assetId} scopeName={asset.title} />}
@@ -453,61 +440,86 @@ export default function AssetPage() {
           </div>
         </div>
 
-        {/* KPIs */}
-        {isReady && (
-          <div className="mt-4">
-            {hasStudied ? (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <KPICard
-                  label="Flashcard accuracy"
-                  value={kpis?.flashcardAccuracy != null ? `${kpis.flashcardAccuracy}%` : null}
-                />
-                <KPICard
-                  label="Quiz best score"
-                  value={kpis?.quizBestScore != null ? `${kpis.quizBestScore}%` : null}
-                />
-                <KPICard
-                  label="Sessions"
-                  value={
-                    (kpis?.flashcardSessions ?? 0) + (kpis?.quizAttempts ?? 0) > 0
-                      ? (kpis?.flashcardSessions ?? 0) + (kpis?.quizAttempts ?? 0)
-                      : null
-                  }
-                />
-                <KPICard
-                  label="Last studied"
-                  value={
-                    kpis?.lastStudiedAt
-                      ? new Date(kpis.lastStudiedAt).toLocaleDateString()
-                      : null
-                  }
-                />
-              </div>
-            ) : (
-              <p className="text-sm text-text-secondary">Start studying below</p>
+        {/* KPIs (compact, right-aligned) */}
+        {isReady && hasStudied && (
+          <div className="mt-4 flex flex-wrap items-center justify-end gap-x-5 gap-y-1 text-xs text-text-secondary">
+            {kpis?.flashcardAccuracy != null && (
+              <span className="inline-flex items-center gap-1.5">
+                <svg className="h-3.5 w-3.5 text-blue-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M2 4.5A2.5 2.5 0 014.5 2h5A2.5 2.5 0 0112 4.5v11a2.5 2.5 0 01-2.5 2.5h-5A2.5 2.5 0 012 15.5v-11z" />
+                  <path d="M8 4.5A2.5 2.5 0 0110.5 2h5A2.5 2.5 0 0118 4.5v11a2.5 2.5 0 01-2.5 2.5h-5A2.5 2.5 0 018 15.5v-11z" opacity="0.5" />
+                </svg>
+                Flashcard accuracy <span className="font-semibold text-text-primary">{kpis.flashcardAccuracy}%</span>
+              </span>
+            )}
+            {kpis?.quizBestScore != null && (
+              <span className="inline-flex items-center gap-1.5">
+                <svg className="h-3.5 w-3.5 text-amber-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M10 1l2.928 6.472L20 8.417l-5.236 4.614L16.18 20 10 16.472 3.82 20l1.416-6.969L0 8.417l7.072-.945L10 1z" clipRule="evenodd" />
+                </svg>
+                Quiz best <span className="font-semibold text-text-primary">{kpis.quizBestScore}%</span>
+              </span>
+            )}
+            {((kpis?.flashcardSessions ?? 0) + (kpis?.quizAttempts ?? 0)) > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <svg className="h-3.5 w-3.5 text-green-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                </svg>
+                Sessions <span className="font-semibold text-text-primary">{(kpis?.flashcardSessions ?? 0) + (kpis?.quizAttempts ?? 0)}</span>
+              </span>
+            )}
+            {kpis?.lastStudiedAt && (
+              <span>Last studied <span className="font-semibold text-text-primary">{new Date(kpis.lastStudiedAt).toLocaleDateString()}</span></span>
             )}
           </div>
         )}
 
-        {/* Show original toggle */}
+        {/* Study this asset */}
         {isReady && (
-          <div className="mt-4">
-            <Button
-              variant={showOriginal ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={() => setShowOriginal((v) => !v)}
-              aria-pressed={showOriginal}
-              leftIcon={
-                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
-                  <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                </svg>
-              }
-            >
-              {showOriginal ? 'Hide original' : 'Show original'}
-            </Button>
+          <div className="mt-5 rounded-xl border border-border bg-primary-tint p-5">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-forest">
+              Study this asset
+            </h2>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Button
+                variant="secondary"
+                leftIcon={<Layers className="h-4 w-4" />}
+                onClick={() => {
+                  const params = new URLSearchParams({
+                    scope: 'asset',
+                    assetId: asset.id,
+                    returnTo: `/assets/${asset.id}`,
+                  })
+                  navigate(`/study/flashcards?${params.toString()}`)
+                }}
+              >
+                Flashcards
+              </Button>
+              <Button
+                variant="secondary"
+                leftIcon={<ClipboardCheck className="h-4 w-4" />}
+                onClick={() => {
+                  const params = new URLSearchParams({
+                    scope: 'asset',
+                    assetId: asset.id,
+                    returnTo: `/assets/${asset.id}`,
+                  })
+                  navigate(`/study/quiz?${params.toString()}`)
+                }}
+              >
+                Quiz
+              </Button>
+              <Button
+                variant="secondary"
+                leftIcon={<Network className="h-4 w-4" />}
+                onClick={() => openGenerationModal(assetScope, 'mindmap')}
+              >
+                Mind Map
+              </Button>
+            </div>
           </div>
         )}
+
       </div>
 
       {/* Main content area */}

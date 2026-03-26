@@ -27,6 +27,7 @@ import { RenameDialog } from '../components/ui/RenameDialog'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Modal } from '../components/ui/Modal'
 import { GenerationModal } from '../components/asset/GenerationModal'
+import { ContentPickerModal } from '../components/study/ContentPickerModal'
 import { AiChatFab } from '../components/chat/AiChatFab'
 import { AiChatPanel } from '../components/chat/AiChatPanel'
 
@@ -185,11 +186,17 @@ export default function StudySetPage() {
   // Chat state (open by default)
   const [chatOpen, setChatOpen] = useState(true)
 
-  // Generation modal state
+  // Generation modal state (mind map only)
   const [genModalOpen, setGenModalOpen] = useState(false)
   const [genScope, setGenScope] = useState<GenerationScope | null>(null)
   const [genModality, setGenModality] = useState<'flashcards' | 'quiz' | 'mindmap' | null>(null)
   const [genScopeTitle, setGenScopeTitle] = useState('')
+
+  // Content picker state (flashcards/quiz)
+  const [contentPicker, setContentPicker] = useState<{
+    isOpen: boolean
+    modality: 'flashcards' | 'quiz'
+  }>({ isOpen: false, modality: 'flashcards' })
 
   // Fetch data
   const fetchData = useCallback(async () => {
@@ -268,9 +275,7 @@ export default function StudySetPage() {
   function handleGenerationSuccess(result: { modalityType: string; id: string }) {
     setGenModalOpen(false)
     fetchData()
-    if (result.modalityType === 'flashcards') navigate(`/flashcards/${result.id}/session`)
-    else if (result.modalityType === 'quiz') navigate(`/quiz/${result.id}/session`)
-    else if (result.modalityType === 'mindmap') navigate(`/mindmap/${result.id}`)
+    if (result.modalityType === 'mindmap') navigate(`/mindmap/${result.id}`)
   }
 
   function handleCitationClick(_: Citation) {
@@ -424,14 +429,14 @@ export default function StudySetPage() {
               <Button
                 variant="secondary"
                 leftIcon={<Layers className="h-4 w-4" />}
-                onClick={() => openGenerationModal(studySetScope, 'flashcards')}
+                onClick={() => setContentPicker({ isOpen: true, modality: 'flashcards' })}
               >
                 Flashcards
               </Button>
               <Button
                 variant="secondary"
                 leftIcon={<ClipboardCheck className="h-4 w-4" />}
-                onClick={() => openGenerationModal(studySetScope, 'quiz')}
+                onClick={() => setContentPicker({ isOpen: true, modality: 'quiz' })}
               >
                 Quiz
               </Button>
@@ -472,28 +477,24 @@ export default function StudySetPage() {
                   kt={kt}
                   citations={citations}
                   onCitationClick={handleCitationClick}
-                  onGenerateFlashcards={(ktId) =>
-                    openGenerationModal(
-                      {
-                        level: 'kt',
-                        ktId,
-                        assetId: synthesisAsset!.id,
-                      },
-                      'flashcards',
-                      kt.heading,
-                    )
-                  }
-                  onGenerateQuiz={(ktId) =>
-                    openGenerationModal(
-                      {
-                        level: 'kt',
-                        ktId,
-                        assetId: synthesisAsset!.id,
-                      },
-                      'quiz',
-                      kt.heading,
-                    )
-                  }
+                  onGenerateFlashcards={(ktId) => {
+                    const params = new URLSearchParams({
+                      scope: 'kt',
+                      ktId,
+                      assetId: synthesisAsset!.id,
+                      returnTo: `/topics/${topicId}/study-sets/${setId}`,
+                    })
+                    navigate(`/study/flashcards?${params.toString()}`)
+                  }}
+                  onGenerateQuiz={(ktId) => {
+                    const params = new URLSearchParams({
+                      scope: 'kt',
+                      ktId,
+                      assetId: synthesisAsset!.id,
+                      returnTo: `/topics/${topicId}/study-sets/${setId}`,
+                    })
+                    navigate(`/study/quiz?${params.toString()}`)
+                  }}
                   onGenerateMindMap={(ktId) =>
                     openGenerationModal(
                       {
@@ -546,7 +547,7 @@ export default function StudySetPage() {
         variant="danger"
       />
 
-      {/* Generation modal */}
+      {/* Generation modal (mind map only) */}
       {genModalOpen && genScope && genModality && (
         <GenerationModal
           isOpen={genModalOpen}
@@ -559,6 +560,26 @@ export default function StudySetPage() {
           assets={setAssets}
         />
       )}
+
+      {/* Content picker for adaptive flashcards/quiz */}
+      <ContentPickerModal
+        isOpen={contentPicker.isOpen}
+        onClose={() => setContentPicker((prev) => ({ ...prev, isOpen: false }))}
+        scopeName={studySet.name}
+        modality={contentPicker.modality}
+        assets={setAssets}
+        onStart={(selectedAssetIds) => {
+          setContentPicker((prev) => ({ ...prev, isOpen: false }))
+          const route = contentPicker.modality === 'flashcards' ? '/study/flashcards' : '/study/quiz'
+          const params = new URLSearchParams({
+            scope: 'studyset',
+            studySetId: studySet.id,
+            assetIds: selectedAssetIds.join(','),
+            returnTo: `/topics/${topicId}/study-sets/${setId}`,
+          })
+          navigate(`${route}?${params.toString()}`)
+        }}
+      />
 
       </div>
       </div>

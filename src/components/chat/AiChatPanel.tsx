@@ -63,7 +63,7 @@ export function AiChatPanel({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full p-1 text-text-secondary hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-text-secondary hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           aria-label="Close chat panel"
         >
           <svg

@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import type { MindMap, MindMapNode } from '../../types/domain'
+import { getKTPerformance, computeNeedsReview } from '../../utils/ktPerformance'
 
 interface MindMapViewerProps {
   mindMap: MindMap
@@ -111,6 +112,22 @@ export function MindMapViewer({ mindMap, onNodeClick }: MindMapViewerProps) {
   }, [])
 
   const { positions, edges } = computeLayout(mindMap)
+
+  // Compute which KT nodes need review
+  const reviewSet = useMemo(() => {
+    const ids = new Set<string>()
+    for (const node of mindMap.nodes) {
+      if (node.ktId) {
+        const record = getKTPerformance(node.ktId)
+        if (computeNeedsReview(record)) {
+          ids.add(node.id)
+        }
+      }
+    }
+    return ids
+  }, [mindMap.nodes])
+
+  const hasReviewNodes = reviewSet.size > 0
 
   /* ---------------------------------------------------------------- */
   /*  Pan handlers                                                     */
@@ -300,6 +317,7 @@ export function MindMapViewer({ mindMap, onNodeClick }: MindMapViewerProps) {
     if (pos.type === 'branch') {
       const rw = 140
       const rh = 36
+      const needsReviewFlag = reviewSet.has(pos.node.id)
       return (
         <g
           key={pos.node.id}
@@ -331,10 +349,23 @@ export function MindMapViewer({ mindMap, onNodeClick }: MindMapViewerProps) {
             width={rw}
             height={rh}
             rx={10}
-            fill="#2AC271"
-            stroke={isHovered ? '#004232' : 'none'}
+            fill={needsReviewFlag ? '#FEF3C7' : '#2AC271'}
+            stroke={needsReviewFlag ? '#F59E0B' : isHovered ? '#004232' : 'none'}
             strokeWidth={2}
           />
+          {needsReviewFlag && (
+            <text
+              x={pos.x - rw / 2 + 10}
+              y={pos.y}
+              textAnchor="start"
+              dominantBaseline="central"
+              fill="#F59E0B"
+              fontSize="12"
+              className="pointer-events-none select-none"
+            >
+              ⚠
+            </text>
+          )}
           <text
             x={pos.x}
             y={pos.y}
@@ -354,6 +385,7 @@ export function MindMapViewer({ mindMap, onNodeClick }: MindMapViewerProps) {
     // Leaf
     const rw = 100
     const rh = 28
+    const needsReviewFlag = reviewSet.has(pos.node.id)
     return (
       <g
         key={pos.node.id}
@@ -370,12 +402,25 @@ export function MindMapViewer({ mindMap, onNodeClick }: MindMapViewerProps) {
           width={rw}
           height={rh}
           rx={14}
-          fill="#F5F5F5"
-          stroke={isHovered ? '#D0D0D0' : '#E8E8E8'}
-          strokeWidth={1}
+          fill={needsReviewFlag ? '#FEF3C7' : '#F5F5F5'}
+          stroke={needsReviewFlag ? '#F59E0B' : isHovered ? '#D0D0D0' : '#E8E8E8'}
+          strokeWidth={needsReviewFlag ? 1.5 : 1}
         />
+        {needsReviewFlag && (
+          <text
+            x={pos.x - rw / 2 + 8}
+            y={pos.y}
+            textAnchor="start"
+            dominantBaseline="central"
+            fill="#F59E0B"
+            fontSize="10"
+            className="pointer-events-none select-none"
+          >
+            ⚠
+          </text>
+        )}
         <text
-          x={pos.x}
+          x={needsReviewFlag ? pos.x + 4 : pos.x}
           y={pos.y}
           textAnchor="middle"
           dominantBaseline="central"
@@ -383,7 +428,7 @@ export function MindMapViewer({ mindMap, onNodeClick }: MindMapViewerProps) {
           fontSize="10"
           className="pointer-events-none select-none"
         >
-          {truncate(pos.node.label, 14)}
+          {truncate(pos.node.label, needsReviewFlag ? 12 : 14)}
         </text>
       </g>
     )
@@ -394,29 +439,32 @@ export function MindMapViewer({ mindMap, onNodeClick }: MindMapViewerProps) {
   }
 
   return (
-    <svg
-      ref={svgRef}
-      width="100%"
-      height="100%"
-      viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
-      aria-label={`Mind map: ${mindMap.title}`}
-      role="img"
-      className="select-none"
-      style={{ cursor: isPanningState ? 'grabbing' : 'grab' }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onWheel={handleWheel}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* Edges */}
-      {edges.map((edge, i) => renderEdge(edge, i))}
+    <div className="relative h-full w-full">
+      <svg
+        ref={svgRef}
+        width="100%"
+        height="100%"
+        viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
+        aria-label={`Mind map: ${mindMap.title}`}
+        role="img"
+        className="select-none"
+        style={{ cursor: isPanningState ? 'grabbing' : 'grab' }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Edges */}
+        {edges.map((edge, i) => renderEdge(edge, i))}
 
-      {/* Nodes */}
-      {positions.map((pos, i) => renderNode(pos, i))}
-    </svg>
+        {/* Nodes */}
+        {positions.map((pos, i) => renderNode(pos, i))}
+      </svg>
+
+    </div>
   )
 }

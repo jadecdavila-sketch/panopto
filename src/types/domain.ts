@@ -174,6 +174,19 @@ export interface RecentActivityItem {
   route: string
 }
 
+export interface KTPerformanceRecord {
+  ktId: string
+  assetId: string
+  flashcardAttempts: number
+  flashcardCorrect: number
+  flashcardLastSeen: string | null
+  quizAttempts: number
+  quizCorrect: number
+  quizLastSeen: string | null
+  lastConfidenceRating: number | null
+  needsReview: boolean
+}
+
 export interface PanoptoVideo {
   id: string
   title: string

@@ -20,6 +20,8 @@ import type {
   Citation,
 } from '../types/domain'
 
+import { getKTPerformance } from '../utils/ktPerformance'
+
 import {
   topics as initialTopics,
   learningAssets as initialAssets,
@@ -119,32 +121,6 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
         title: a.title,
         subtitle: `${a.type.charAt(0).toUpperCase() + a.type.slice(1)} · ${a.sourceLabel}`,
         href: `/assets/${a.id}`,
-      })
-    }
-  }
-
-  // Search flashcard sets
-  for (const fs of flashcardSets) {
-    if (fs.title.toLowerCase().includes(q)) {
-      results.push({
-        id: fs.id,
-        type: 'flashcardSet',
-        title: fs.title,
-        subtitle: `Flashcards · ${fs.cards.length} cards`,
-        href: `/flashcards/${fs.id}/session`,
-      })
-    }
-  }
-
-  // Search quizzes
-  for (const qz of quizzes) {
-    if (qz.title.toLowerCase().includes(q)) {
-      results.push({
-        id: qz.id,
-        type: 'quiz',
-        title: qz.title,
-        subtitle: `Quiz · ${qz.questions.length} questions`,
-        href: `/quiz/${qz.id}/session`,
       })
     }
   }
@@ -956,27 +932,25 @@ function addRecentActivity(item: RecentActivityItem): void {
 export async function getDashboardKPIs(): Promise<DashboardKPI> {
   await delay()
   const activeTopics = topics.filter((t) => !t.archived)
-  const allSessions = [...fcSessions, ...qzSessions]
 
-  const fcAccuracies = fcSessions.map((s) => s.accuracy)
-  const qzScores = qzSessions.map((s) => s.score)
+  // Derive from KT performance records
+  const allKtIds = assets
+    .filter((a) => !a.isDeleted && !a.isSynthesis && a.processingStatus === 'ready')
+    .flatMap((a) => a.knowledgeTouchpoints.map((kt) => kt.id))
+  const derived = deriveKPIsFromPerformance(allKtIds)
+
+  // Streak still uses session dates from performance records
+  const allDates = allKtIds
+    .map((id) => getKTPerformance(id))
+    .flatMap((r) => [r.flashcardLastSeen, r.quizLastSeen])
+    .filter(Boolean) as string[]
 
   return {
     totalTopics: activeTopics.length,
-    overallAccuracy:
-      fcAccuracies.length > 0
-        ? Math.round((fcAccuracies.reduce((a, b) => a + b, 0) / fcAccuracies.length) * 100)
-        : null,
-    overallQuizBest:
-      qzScores.length > 0 ? Math.round(Math.max(...qzScores) * 100) : null,
-    studyStreak: computeStreak(allSessions.map((s) => s.completedAt)),
-    lastStudiedAt:
-      allSessions.length > 0
-        ? allSessions
-            .map((s) => s.completedAt)
-            .sort()
-            .reverse()[0]
-        : null,
+    overallAccuracy: derived.flashcardAccuracy,
+    overallQuizBest: derived.quizBestScore,
+    studyStreak: computeStreak(allDates),
+    lastStudiedAt: derived.lastStudiedAt,
   }
 }
 
@@ -986,92 +960,43 @@ export async function getTopicKPIs(topicId: string): Promise<TopicKPI> {
     .filter((a) => a.topicId === topicId && !a.isDeleted)
     .map((a) => a.id)
 
-  const topicFcSets = flashcardSets.filter((s) => {
-    const scope = s.scope
-    if (scope.level === 'asset') return topicAssetIds.includes(scope.assetId)
-    if (scope.level === 'topic') return scope.topicId === topicId
-    if (scope.level === 'studyset') return scope.topicId === topicId
-    return false
-  })
-  const topicFcSetIds = new Set(topicFcSets.map((s) => s.id))
+  const ktIds = getKTsForTopic(topicId).map((kt) => kt.id)
+  const derived = deriveKPIsFromPerformance(ktIds)
 
-  const topicQuizzes = quizzes.filter((q) => {
-    const scope = q.scope
-    if (scope.level === 'asset') return topicAssetIds.includes(scope.assetId)
-    if (scope.level === 'topic') return scope.topicId === topicId
-    if (scope.level === 'studyset') return scope.topicId === topicId
-    return false
-  })
-  const topicQuizIds = new Set(topicQuizzes.map((q) => q.id))
-
-  const relevantFcSessions = fcSessions.filter((s) =>
-    topicFcSetIds.has(s.setId)
-  )
-  const relevantQzSessions = qzSessions.filter((s) =>
-    topicQuizIds.has(s.quizId)
-  )
-
-  const fcAccuracies = relevantFcSessions.map((s) => s.accuracy)
-  const qzScores = relevantQzSessions.map((s) => s.score)
-  const allDates = [
-    ...relevantFcSessions.map((s) => s.completedAt),
-    ...relevantQzSessions.map((s) => s.completedAt),
-  ]
+  const allDates = ktIds
+    .map((id) => getKTPerformance(id))
+    .flatMap((r) => [r.flashcardLastSeen, r.quizLastSeen])
+    .filter(Boolean) as string[]
 
   return {
     assetCount: topicAssetIds.length,
-    flashcardAccuracy:
-      fcAccuracies.length > 0
-        ? Math.round((fcAccuracies.reduce((a, b) => a + b, 0) / fcAccuracies.length) * 100)
-        : null,
-    quizBestScore: qzScores.length > 0 ? Math.round(Math.max(...qzScores) * 100) : null,
+    flashcardAccuracy: derived.flashcardAccuracy,
+    quizBestScore: derived.quizBestScore,
     studyStreak: computeStreak(allDates),
-    lastStudiedAt: allDates.length > 0 ? allDates.sort().reverse()[0] : null,
+    lastStudiedAt: derived.lastStudiedAt,
   }
 }
 
 export async function getAssetKPIs(assetId: string): Promise<AssetKPI> {
   await delay()
   const asset = assets.find((a) => a.id === assetId)
-
-  const assetFcSets = flashcardSets.filter(
-    (s) => s.scope.level === 'asset' && s.scope.assetId === assetId
-  )
-  const assetFcSetIds = new Set(assetFcSets.map((s) => s.id))
-
-  const assetQuizzes = quizzes.filter(
-    (q) => q.scope.level === 'asset' && q.scope.assetId === assetId
-  )
-  const assetQuizIds = new Set(assetQuizzes.map((q) => q.id))
-
-  const relevantFcSessions = fcSessions.filter((s) =>
-    assetFcSetIds.has(s.setId)
-  )
-  const relevantQzSessions = qzSessions.filter((s) =>
-    assetQuizIds.has(s.quizId)
-  )
-
-  const fcAccuracies = relevantFcSessions.map((s) => s.accuracy)
-  const qzScores = relevantQzSessions.map((s) => s.score)
-  const allDates = [
-    ...relevantFcSessions.map((s) => s.completedAt),
-    ...relevantQzSessions.map((s) => s.completedAt),
-  ]
-
   const kts = asset?.knowledgeTouchpoints ?? []
+  const ktIds = kts.map((k) => k.id)
+  const derived = deriveKPIsFromPerformance(ktIds)
+
+  const records = ktIds.map((id) => getKTPerformance(id))
+  const fcSessionCount = records.reduce((sum, r) => sum + r.flashcardAttempts, 0)
+  const qzAttemptCount = records.reduce((sum, r) => sum + r.quizAttempts, 0)
 
   return {
-    flashcardAccuracy:
-      fcAccuracies.length > 0
-        ? Math.round((fcAccuracies.reduce((a, b) => a + b, 0) / fcAccuracies.length) * 100)
-        : null,
-    quizBestScore: qzScores.length > 0 ? Math.round(Math.max(...qzScores) * 100) : null,
-    quizAttempts: relevantQzSessions.length,
-    flashcardSessions: relevantFcSessions.length,
-    lastStudiedAt: allDates.length > 0 ? allDates.sort().reverse()[0] : null,
+    flashcardAccuracy: derived.flashcardAccuracy,
+    quizBestScore: derived.quizBestScore,
+    quizAttempts: qzAttemptCount,
+    flashcardSessions: Math.ceil(fcSessionCount / 10),
+    lastStudiedAt: derived.lastStudiedAt,
     ktsTotal: kts.length,
-    ktsWithFlashcards: kts.filter((k) => k.flashcardSetId).length,
-    ktsWithQuiz: kts.filter((k) => k.quizId).length,
+    ktsWithFlashcards: records.filter((r) => r.flashcardAttempts > 0).length,
+    ktsWithQuiz: records.filter((r) => r.quizAttempts > 0).length,
   }
 }
 
@@ -1324,6 +1249,200 @@ function buildQuizQuestion(
     explanation: `${stem}. This is supported by the material covering ${kt.heading.toLowerCase()}.`,
     citationIds: kt.citationIds.slice(0, 1),
   }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Adaptive generation (single KT → single card/question)             */
+/* ------------------------------------------------------------------ */
+
+export function generateFlashcardFromKT(
+  kt: KnowledgeTouchpoint,
+  attemptNumber: number,
+): Flashcard {
+  const words = kt.heading.toLowerCase()
+  let front: string
+  let back: string
+  const sentences = kt.body.split('. ')
+
+  switch (attemptNumber % 4) {
+    case 0: // definition
+      front = `What is ${words}?`
+      back = sentences.slice(0, 2).join('. ') + '.'
+      break
+    case 1: // application
+      front = `How would you apply ${words} in a real-world scenario?`
+      back = `${sentences[0]}. In practice, this means understanding how ${words} influences outcomes and processes.`
+      break
+    case 2: // comparison
+      front = `How does ${words} differ from related concepts?`
+      back = `${sentences.slice(0, 2).join('. ')}. The distinguishing feature is the specific mechanism described in this touchpoint.`
+      break
+    default: // synthesis
+      front = `Give an example of ${words} in context.`
+      back = `For instance, ${sentences[sentences.length - 1] ?? sentences[0]} This illustrates the core principle of ${words}.`
+      break
+  }
+
+  return {
+    id: nextId('fc'),
+    front,
+    back,
+    citationIds: kt.citationIds.slice(0, 1),
+  }
+}
+
+export function generateQuizQuestionFromKT(
+  kt: KnowledgeTouchpoint,
+  attemptNumber: number,
+): QuizQuestion {
+  const sentences = kt.body.split('. ')
+  const stem = sentences[0] ?? kt.body
+  const correctAnswer = sentences[1] ?? sentences[0] ?? kt.heading
+
+  const distractorSets = [
+    [
+      `This process is unrelated to ${kt.heading.toLowerCase()}.`,
+      `The opposite mechanism occurs: inhibition rather than activation.`,
+      `Only prokaryotic organisms exhibit this behaviour.`,
+    ],
+    [
+      `This concept applies exclusively to inorganic systems.`,
+      `The described effect is negligible in most conditions.`,
+      `This mechanism has been fully disproven by recent research.`,
+    ],
+    [
+      `The reverse process is what actually occurs in vivo.`,
+      `This only happens during early embryonic development.`,
+      `External factors have no influence on this process.`,
+    ],
+    [
+      `This pathway requires no energy input whatsoever.`,
+      `The concept is a historical artifact with no modern relevance.`,
+      `Only plant cells demonstrate this characteristic.`,
+    ],
+  ]
+
+  const distractors = distractorSets[attemptNumber % distractorSets.length]
+  const correctIndex = attemptNumber % 4
+
+  const questionPrefixes = [
+    `Based on "${kt.heading}", which of the following statements is most accurate?`,
+    `Regarding ${kt.heading.toLowerCase()}, which statement best describes the concept?`,
+    `Which of the following correctly explains an aspect of ${kt.heading.toLowerCase()}?`,
+    `When considering ${kt.heading.toLowerCase()}, which is true?`,
+  ]
+
+  const shuffled = [...distractors]
+  shuffled.splice(correctIndex, 0, correctAnswer)
+
+  return {
+    id: nextId('qq'),
+    questionText: questionPrefixes[attemptNumber % questionPrefixes.length],
+    options: shuffled.slice(0, 4),
+    correctIndex,
+    explanation: `${stem}. This is supported by the material covering ${kt.heading.toLowerCase()}.`,
+    citationIds: kt.citationIds.slice(0, 1),
+  }
+}
+
+/**
+ * Given a list of asset IDs, returns all KTs from those assets.
+ */
+export function getKTsForAssets(assetIds: string[]): KnowledgeTouchpoint[] {
+  const idSet = new Set(assetIds)
+  return assets
+    .filter((a) => idSet.has(a.id) && !a.isDeleted && a.processingStatus === 'ready')
+    .flatMap((a) => a.knowledgeTouchpoints)
+}
+
+/**
+ * Given a topic ID, returns all KTs from non-deleted, ready assets in the topic.
+ */
+export function getKTsForTopic(topicId: string): KnowledgeTouchpoint[] {
+  return assets
+    .filter(
+      (a) =>
+        a.topicId === topicId &&
+        !a.isDeleted &&
+        !a.isSynthesis &&
+        a.processingStatus === 'ready',
+    )
+    .flatMap((a) => a.knowledgeTouchpoints)
+}
+
+/**
+ * Given a study set ID, returns all KTs from its assets.
+ */
+export function getKTsForStudySet(studySetId: string): KnowledgeTouchpoint[] {
+  const ss = studySets.find((s) => s.id === studySetId && !s.isDeleted)
+  if (!ss) return []
+  return getKTsForAssets(ss.assetIds)
+}
+
+/**
+ * Get all assets for a topic (non-deleted, non-synthesis, ready).
+ */
+export function getTopicAssets(topicId: string): LearningAsset[] {
+  return clone(
+    assets.filter(
+      (a) =>
+        a.topicId === topicId &&
+        !a.isDeleted &&
+        !a.isSynthesis &&
+        a.processingStatus === 'ready',
+    ),
+  )
+}
+
+/**
+ * Get all assets for a study set.
+ */
+export function getStudySetAssets(studySetId: string): LearningAsset[] {
+  const ss = studySets.find((s) => s.id === studySetId && !s.isDeleted)
+  if (!ss) return []
+  return clone(
+    assets.filter((a) => ss.assetIds.includes(a.id) && !a.isDeleted),
+  )
+}
+
+/**
+ * Derive KPI values from KT performance records instead of saved sessions.
+ */
+export function deriveKPIsFromPerformance(ktIds: string[]): {
+  flashcardAccuracy: number | null
+  quizBestScore: number | null
+  lastStudiedAt: string | null
+  sessionCount: number
+} {
+  const records = ktIds.map((id) => getKTPerformance(id))
+  const withFc = records.filter((r) => r.flashcardAttempts > 0)
+  const withQz = records.filter((r) => r.quizAttempts > 0)
+
+  const flashcardAccuracy =
+    withFc.length > 0
+      ? Math.round(
+          (withFc.reduce((acc, r) => acc + r.flashcardCorrect / r.flashcardAttempts, 0) /
+            withFc.length) *
+            100,
+        )
+      : null
+
+  const quizAccuracies = withQz.map((r) => r.quizCorrect / r.quizAttempts)
+  const quizBestScore =
+    quizAccuracies.length > 0 ? Math.round(Math.max(...quizAccuracies) * 100) : null
+
+  const allDates = records
+    .flatMap((r) => [r.flashcardLastSeen, r.quizLastSeen])
+    .filter(Boolean) as string[]
+  const lastStudiedAt = allDates.length > 0 ? allDates.sort().reverse()[0] : null
+
+  const totalSessions = records.reduce(
+    (sum, r) => sum + r.flashcardAttempts + r.quizAttempts,
+    0,
+  )
+  const sessionCount = Math.ceil(totalSessions / 10)
+
+  return { flashcardAccuracy, quizBestScore, lastStudiedAt, sessionCount }
 }
 
 function extractKeyTerms(body: string, count: number): string[] {

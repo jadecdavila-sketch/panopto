@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { Button } from '../components/ui/Button'
-import { KPICard } from '../components/ui/KPICard'
-import { FilterChips } from '../components/ui/FilterChips'
 import { Skeleton } from '../components/ui/Skeleton'
 import { InlineError } from '../components/ui/InlineError'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
@@ -12,6 +10,7 @@ import { DropdownMenu } from '../components/ui/DropdownMenu'
 import { AssetCard } from '../components/asset/AssetCard'
 import { StudySetCard } from '../components/studyset/StudySetCard'
 import { GenerationModal } from '../components/asset/GenerationModal'
+import { ContentPickerModal } from '../components/study/ContentPickerModal'
 import { CreateTopicDialog } from '../components/topic/CreateTopicDialog'
 import { AddAssetModal } from '../components/asset/AddAssetModal'
 import { CreateStudySetDialog } from '../components/studyset/CreateStudySetDialog'
@@ -31,11 +30,6 @@ import {
   getAssetKPIs,
   renameStudySet,
   deleteStudySet,
-  listAllFlashcardSetsForTopic,
-  listAllQuizzesForTopic,
-  listAllMindMapsForTopic,
-  getAllFlashcardSessions,
-  getAllQuizSessions,
 } from '../services/mockApi'
 import type {
   Topic,
@@ -43,11 +37,6 @@ import type {
   StudySet,
   TopicKPI,
   AssetKPI,
-  FlashcardSet,
-  FlashcardSession,
-  Quiz,
-  QuizSession,
-  MindMap,
   ModalityType,
   GenerationScope,
 } from '../types/domain'
@@ -56,14 +45,6 @@ import type {
 /*  Filter options                                                     */
 /* ------------------------------------------------------------------ */
 
-const FILTER_OPTIONS = [
-  { id: 'all', label: 'All Content' },
-  { id: 'assets', label: 'Materials' },
-  { id: 'studysets', label: 'Study Sets' },
-  { id: 'flashcards', label: 'Flashcards' },
-  { id: 'quizzes', label: 'Quizzes' },
-  { id: 'mindmaps', label: 'Mind Maps' },
-]
 
 /* ------------------------------------------------------------------ */
 /*  Icons                                                              */
@@ -72,50 +53,6 @@ const FILTER_OPTIONS = [
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
-
-function ScopeBreadcrumb({
-  scope,
-  assetMap,
-  ktMap,
-  topicName,
-}: {
-  scope: GenerationScope
-  assetMap: Record<string, string>
-  ktMap: Record<string, string>
-  topicName: string
-}) {
-  const sep = <span className="text-text-disabled" aria-hidden="true">/</span>
-  const crumb = (text: string) => (
-    <span className="truncate max-w-[120px]" title={text}>{text}</span>
-  )
-
-  switch (scope.level) {
-    case 'topic':
-      return <span className="inline-flex items-center gap-1 text-[11px] text-text-secondary">{crumb(topicName)}</span>
-    case 'studyset':
-      return <span className="inline-flex items-center gap-1 text-[11px] text-text-secondary">{crumb(topicName)} {sep} Study Set</span>
-    case 'asset':
-      return (
-        <span className="inline-flex items-center gap-1 text-[11px] text-text-secondary">
-          {crumb(topicName)} {sep} {crumb(assetMap[scope.assetId] ?? 'Material')}
-        </span>
-      )
-    case 'kt':
-      return (
-        <span className="inline-flex items-center gap-1 text-[11px] text-text-secondary">
-          {crumb(topicName)} {sep} {crumb(assetMap[scope.assetId] ?? 'Material')} {sep} {crumb(ktMap[scope.ktId] ?? 'KT')}
-        </span>
-      )
-  }
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
 
 function formatLastStudied(dateStr: string | null): string {
   if (!dateStr) return '\u2014'
@@ -142,17 +79,10 @@ export default function TopicPage() {
   const [studySets, setStudySets] = useState<StudySet[]>([])
   const [kpis, setKpis] = useState<TopicKPI | null>(null)
   const [assetKpiMap, setAssetKpiMap] = useState<Record<string, AssetKPI>>({})
-  const [allFlashcardSets, setAllFlashcardSets] = useState<FlashcardSet[]>([])
-  const [allQuizzes, setAllQuizzes] = useState<Quiz[]>([])
-  const [allMindMaps, setAllMindMaps] = useState<MindMap[]>([])
-  const [fcSessionMap, setFcSessionMap] = useState<Record<string, { lastPlayed: string; accuracy: number }>>({})
-  const [qzSessionMap, setQzSessionMap] = useState<Record<string, { lastPlayed: string; bestScore: number }>>({})
 
   // UI state
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filter, setFilter] = useState('all')
-  const [viewMode] = useState<'grid' | 'list'>('grid')
 
   // Dialog state
   const [renameOpen, setRenameOpen] = useState(false)
@@ -163,6 +93,12 @@ export default function TopicPage() {
     isOpen: boolean
     modalityType: ModalityType
   }>({ isOpen: false, modalityType: 'flashcards' })
+
+  // Content picker state
+  const [contentPicker, setContentPicker] = useState<{
+    isOpen: boolean
+    modality: 'flashcards' | 'quiz'
+  }>({ isOpen: false, modality: 'flashcards' })
 
   // + New dialog state
   const [createTopicOpen, setCreateTopicOpen] = useState(false)
@@ -180,21 +116,15 @@ export default function TopicPage() {
     setError(null)
 
     try {
-      const [detail, topicKpis, allFS, allQ, allMM] = await Promise.all([
+      const [detail, topicKpis] = await Promise.all([
         getTopicDetail(topicId),
         getTopicKPIs(topicId),
-        listAllFlashcardSetsForTopic(topicId),
-        listAllQuizzesForTopic(topicId),
-        listAllMindMapsForTopic(topicId),
       ])
 
       setTopic(detail.topic)
       setAssets(detail.assets)
       setStudySets(detail.studySets)
       setKpis(topicKpis)
-      setAllFlashcardSets(allFS)
-      setAllQuizzes(allQ)
-      setAllMindMaps(allMM)
 
       // Fetch per-asset KPIs
       const kpiEntries = await Promise.all(
@@ -207,34 +137,6 @@ export default function TopicPage() {
       )
       setAssetKpiMap(Object.fromEntries(kpiEntries))
 
-      // Fetch session stats for flashcard sets and quizzes
-      const allFcIds = allFS.map((fs: FlashcardSet) => fs.id)
-      const allQzIds = allQ.map((q: Quiz) => q.id)
-      const [fcSessions, qzSessions] = await Promise.all([
-        allFcIds.length > 0 ? getAllFlashcardSessions(allFcIds) : Promise.resolve([]),
-        allQzIds.length > 0 ? getAllQuizSessions(allQzIds) : Promise.resolve([]),
-      ])
-
-      const fcMap: Record<string, { lastPlayed: string; accuracy: number }> = {}
-      for (const s of fcSessions as FlashcardSession[]) {
-        const prev = fcMap[s.setId]
-        if (!prev || new Date(s.completedAt) > new Date(prev.lastPlayed)) {
-          fcMap[s.setId] = { lastPlayed: s.completedAt, accuracy: s.accuracy }
-        }
-      }
-      setFcSessionMap(fcMap)
-
-      const qzMap: Record<string, { lastPlayed: string; bestScore: number }> = {}
-      for (const s of qzSessions as QuizSession[]) {
-        const prev = qzMap[s.quizId]
-        if (!prev) {
-          qzMap[s.quizId] = { lastPlayed: s.completedAt, bestScore: s.score }
-        } else {
-          if (s.score > prev.bestScore) qzMap[s.quizId].bestScore = s.score
-          if (new Date(s.completedAt) > new Date(prev.lastPlayed)) qzMap[s.quizId].lastPlayed = s.completedAt
-        }
-      }
-      setQzSessionMap(qzMap)
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Failed to load folio. Please try again.',
@@ -351,23 +253,10 @@ export default function TopicPage() {
   const readyAssets = assets.filter((a) => a.processingStatus === 'ready' && !a.isSynthesis)
   const hasReadyAssets = readyAssets.length > 0
 
-  const showAssets = filter === 'all' || filter === 'assets'
-  const showStudySets = filter === 'all' || filter === 'studysets'
-  const showFlashcards = filter === 'all' || filter === 'flashcards'
-  const showQuizzes = filter === 'all' || filter === 'quizzes'
-  const showMindMaps = filter === 'all' || filter === 'mindmaps'
 
   const generationScope: GenerationScope | null = topicId
     ? { level: 'topic', topicId }
     : null
-
-  // Lookup maps for scope labels
-  const assetNameMap: Record<string, string> = Object.fromEntries(
-    assets.map((a) => [a.id, a.title]),
-  )
-  const ktNameMap: Record<string, string> = Object.fromEntries(
-    assets.flatMap((a) => a.knowledgeTouchpoints.map((kt) => [kt.id, kt.heading])),
-  )
 
   /* ---------------------------------------------------------------- */
   /*  Loading state                                                    */
@@ -501,25 +390,37 @@ export default function TopicPage() {
           </div>
         </div>
 
-        {/* KPI strip */}
+        {/* KPI strip (compact, right-aligned) */}
         {kpis && (
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            <KPICard
-              label="Flashcard Accuracy"
-              value={kpis.flashcardAccuracy != null ? `${kpis.flashcardAccuracy}%` : null}
-            />
-            <KPICard
-              label="Quiz Best Score"
-              value={kpis.quizBestScore != null ? `${kpis.quizBestScore}%` : null}
-            />
-            <KPICard
-              label="Study Streak"
-              value={kpis.studyStreak > 0 ? `${kpis.studyStreak} days` : null}
-            />
-            <KPICard
-              label="Last Studied"
-              value={formatLastStudied(kpis.lastStudiedAt)}
-            />
+          <div className="mt-4 flex flex-wrap items-center justify-end gap-x-5 gap-y-1 text-xs text-text-secondary">
+            {kpis.flashcardAccuracy != null && (
+              <span className="inline-flex items-center gap-1.5">
+                <svg className="h-3.5 w-3.5 text-blue-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M2 4.5A2.5 2.5 0 014.5 2h5A2.5 2.5 0 0112 4.5v11a2.5 2.5 0 01-2.5 2.5h-5A2.5 2.5 0 012 15.5v-11z" />
+                  <path d="M8 4.5A2.5 2.5 0 0110.5 2h5A2.5 2.5 0 0118 4.5v11a2.5 2.5 0 01-2.5 2.5h-5A2.5 2.5 0 018 15.5v-11z" opacity="0.5" />
+                </svg>
+                Flashcard accuracy <span className="font-semibold text-text-primary">{kpis.flashcardAccuracy}%</span>
+              </span>
+            )}
+            {kpis.quizBestScore != null && (
+              <span className="inline-flex items-center gap-1.5">
+                <svg className="h-3.5 w-3.5 text-amber-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M10 1l2.928 6.472L20 8.417l-5.236 4.614L16.18 20 10 16.472 3.82 20l1.416-6.969L0 8.417l7.072-.945L10 1z" clipRule="evenodd" />
+                </svg>
+                Quiz best <span className="font-semibold text-text-primary">{kpis.quizBestScore}%</span>
+              </span>
+            )}
+            {kpis.studyStreak > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <svg className="h-3.5 w-3.5 text-orange-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
+                </svg>
+                Streak <span className="font-semibold text-text-primary">{kpis.studyStreak}d</span>
+              </span>
+            )}
+            {kpis.lastStudiedAt && (
+              <span>Last studied <span className="font-semibold text-text-primary">{formatLastStudied(kpis.lastStudiedAt)}</span></span>
+            )}
           </div>
         )}
 
@@ -533,7 +434,7 @@ export default function TopicPage() {
               variant="secondary"
               disabled={!hasReadyAssets}
               leftIcon={<Layers className="h-4 w-4" />}
-              onClick={() => openGenerationModal('flashcards')}
+              onClick={() => setContentPicker({ isOpen: true, modality: 'flashcards' })}
             >
               Flashcards
             </Button>
@@ -541,7 +442,7 @@ export default function TopicPage() {
               variant="secondary"
               disabled={!hasReadyAssets}
               leftIcon={<ClipboardCheck className="h-4 w-4" />}
-              onClick={() => openGenerationModal('quiz')}
+              onClick={() => setContentPicker({ isOpen: true, modality: 'quiz' })}
             >
               Quiz
             </Button>
@@ -557,49 +458,24 @@ export default function TopicPage() {
         </div>
       </div>
 
-      {/* Filter chips + New */}
-      <div className="mt-10 flex items-center justify-between gap-4">
-        <FilterChips
-          options={FILTER_OPTIONS}
-          selected={filter}
-          onChange={setFilter}
-        />
-        <DropdownMenu
-          trigger={
-            <Button
-              variant="secondary"
-              size="sm"
-              leftIcon={
-                <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              }
-            >
-              New
-            </Button>
-          }
-          items={[
-            { label: 'Learning Material', onClick: () => setAddAssetOpen(true) },
-            { label: 'Study Set', onClick: () => setCreateStudySetOpen(true) },
-          ]}
-        />
-      </div>
-
       {/* Content area */}
-      <div className="mt-6 space-y-8">
+      <div className="mt-10 space-y-8">
         {/* Study Sets */}
-        {showStudySets && studySets.length > 0 && (
-          <section>
+        <section>
             <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">
               Study Sets
             </h2>
-            <div
-              className={
-                viewMode === 'grid'
-                  ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3'
-                  : 'flex flex-col gap-3'
-              }
-            >
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => setCreateStudySetOpen(true)}
+                className="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary/30 bg-transparent p-4 text-primary transition-colors hover:border-primary hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                <svg className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                <span className="text-sm font-medium">New Study Set</span>
+              </button>
               {studySets.map((ss) => (
                 <StudySetCard
                   key={ss.id}
@@ -609,22 +485,24 @@ export default function TopicPage() {
                 />
               ))}
             </div>
-          </section>
-        )}
+        </section>
 
         {/* Learning Materials */}
-        {showAssets && assets.length > 0 && (
-          <section>
+        <section>
             <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">
-              Learning Materials
+              All Learning Materials
             </h2>
-            <div
-              className={
-                viewMode === 'grid'
-                  ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3'
-                  : 'flex flex-col gap-3'
-              }
-            >
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => setAddAssetOpen(true)}
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary/30 bg-transparent px-3 py-2.5 text-primary transition-colors hover:border-primary hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                <span className="text-sm font-medium">Add Material</span>
+              </button>
               {assets.map((asset) => (
                 <AssetCard
                   key={asset.id}
@@ -635,160 +513,7 @@ export default function TopicPage() {
                 />
               ))}
             </div>
-          </section>
-        )}
-
-        {/* Flashcard Sets (all levels) */}
-        {showFlashcards && allFlashcardSets.length > 0 && (
-          <section>
-            <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">
-              Flashcard Sets
-            </h2>
-            {allFlashcardSets.length === 0 ? (
-              <p className="rounded-lg border border-border px-4 py-8 text-center text-sm text-text-secondary">
-                No flashcard sets generated yet for this topic.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {allFlashcardSets.map((fs) => (
-                  <div
-                    key={fs.id}
-                    className="flex items-center gap-3 rounded-lg border border-border bg-background p-4"
-                  >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
-                      <Layers className="h-4 w-4" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-text-primary">
-                        {fs.title}
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <ScopeBreadcrumb scope={fs.scope} assetMap={assetNameMap} ktMap={ktNameMap} topicName={topic.name} />
-                        <span className="text-xs text-text-disabled">
-                          {fs.cards.length} cards
-                        </span>
-                        {fcSessionMap[fs.id] && (
-                          <span className="text-xs text-text-disabled">
-                            &middot; {Math.round(fcSessionMap[fs.id].accuracy * 100)}% accuracy &middot; {formatLastStudied(fcSessionMap[fs.id].lastPlayed)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      variant="success"
-                      size="sm"
-                      onClick={() => navigate(`/flashcards/${fs.id}/session`)}
-                    >
-                      Study
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* Quizzes (all levels) */}
-        {showQuizzes && allQuizzes.length > 0 && (
-          <section>
-            <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">
-              Quizzes
-            </h2>
-            {allQuizzes.length === 0 ? (
-              <p className="rounded-lg border border-border px-4 py-8 text-center text-sm text-text-secondary">
-                No quizzes generated yet for this topic.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {allQuizzes.map((q) => (
-                  <div
-                    key={q.id}
-                    className="flex items-center gap-3 rounded-lg border border-border bg-background p-4"
-                  >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
-                      <ClipboardCheck className="h-4 w-4" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-text-primary">
-                        {q.title}
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <ScopeBreadcrumb scope={q.scope} assetMap={assetNameMap} ktMap={ktNameMap} topicName={topic.name} />
-                        <span className="text-xs text-text-disabled">
-                          {q.questions.length} questions
-                        </span>
-                        {qzSessionMap[q.id] && (
-                          <span className="text-xs text-text-disabled">
-                            &middot; Best: {Math.round(qzSessionMap[q.id].bestScore * 100)}% &middot; {formatLastStudied(qzSessionMap[q.id].lastPlayed)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      variant="success"
-                      size="sm"
-                      onClick={() => navigate(`/quiz/${q.id}/session`)}
-                    >
-                      Take
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* Mind Maps (all levels) */}
-        {showMindMaps && allMindMaps.length > 0 && (
-          <section>
-            <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">
-              Mind Maps
-            </h2>
-            {allMindMaps.length === 0 ? (
-              <p className="rounded-lg border border-border px-4 py-8 text-center text-sm text-text-secondary">
-                No mind maps generated yet for this topic.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {allMindMaps.map((mm) => (
-                  <div
-                    key={mm.id}
-                    className="flex items-center gap-3 rounded-lg border border-border bg-background p-4"
-                  >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-500/10 text-purple-500">
-                      <Network className="h-4 w-4" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-text-primary">
-                        {mm.title}
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <ScopeBreadcrumb scope={mm.scope} assetMap={assetNameMap} ktMap={ktNameMap} topicName={topic.name} />
-                        <span className="text-xs text-text-disabled">
-                          {mm.nodes.length} nodes &middot; {formatDate(mm.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-                    <Button
-                      variant="success"
-                      size="sm"
-                      onClick={() => navigate(`/mindmap/${mm.id}`)}
-                    >
-                      View
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* Empty state */}
-        {showAssets && assets.length === 0 && showStudySets && studySets.length === 0 && (
-          <p className="rounded-lg border border-border px-4 py-12 text-center text-sm text-text-secondary">
-            No content in this folio yet. Add learning materials to get started.
-          </p>
-        )}
+        </section>
       </div>
 
       {/* Rename folio dialog */}
@@ -811,16 +536,14 @@ export default function TopicPage() {
         confirmLabel="Archive"
       />
 
-      {/* Generation modal */}
+      {/* Generation modal (mind map only) */}
       {generationScope && (
         <GenerationModal
           isOpen={generationModal.isOpen}
           onClose={closeGenerationModal}
           onSuccess={(result) => {
             fetchData()
-            if (result.modalityType === 'flashcards') navigate(`/flashcards/${result.id}/session`)
-            else if (result.modalityType === 'quiz') navigate(`/quiz/${result.id}/session`)
-            else if (result.modalityType === 'mindmap') navigate(`/mindmap/${result.id}`)
+            if (result.modalityType === 'mindmap') navigate(`/mindmap/${result.id}`)
           }}
           modalityType={generationModal.modalityType}
           scope={generationScope}
@@ -828,6 +551,26 @@ export default function TopicPage() {
           assets={readyAssets}
         />
       )}
+
+      {/* Content picker for adaptive flashcards/quiz */}
+      <ContentPickerModal
+        isOpen={contentPicker.isOpen}
+        onClose={() => setContentPicker((prev) => ({ ...prev, isOpen: false }))}
+        scopeName={topic.name}
+        modality={contentPicker.modality}
+        assets={readyAssets}
+        onStart={(selectedAssetIds) => {
+          setContentPicker((prev) => ({ ...prev, isOpen: false }))
+          const route = contentPicker.modality === 'flashcards' ? '/study/flashcards' : '/study/quiz'
+          const params = new URLSearchParams({
+            scope: 'topic',
+            topicId: topicId!,
+            assetIds: selectedAssetIds.join(','),
+            returnTo: `/topics/${topicId}`,
+          })
+          navigate(`${route}?${params.toString()}`)
+        }}
+      />
 
       {/* + New dialogs */}
       <CreateTopicDialog

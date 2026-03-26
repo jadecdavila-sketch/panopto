@@ -6,6 +6,7 @@ import { useToast } from '../../context/ToastContext'
 import {
   listTopics,
   createTopic,
+  createStudySet,
   startUpload,
 } from '../../services/mockApi'
 import type { Topic, StudySet, PanoptoVideo } from '../../types/domain'
@@ -40,6 +41,7 @@ export function AddAssetModal({
   const [topicId, setTopicId] = useState(defaultTopicId ?? '')
   const [topicInput, setTopicInput] = useState('')
   const [studySetId, setStudySetId] = useState('')
+  const [studySetInput, setStudySetInput] = useState('')
   const [topics, setTopics] = useState<Topic[]>([])
   const [studySets, setStudySets] = useState<StudySet[]>([])
   const [selectedVideos, setSelectedVideos] = useState<PanoptoVideo[]>([])
@@ -60,6 +62,7 @@ export function AddAssetModal({
       setTopicId(defaultTopicId ?? '')
       setTopicInput('')
       setStudySetId('')
+      setStudySetInput('')
       setSelectedVideos([])
       setUploadFiles([])
       setIsSubmitting(false)
@@ -102,6 +105,13 @@ export function AddAssetModal({
         resolvedTopicId = newTopic.id
       }
 
+      // Resolve study set: use selected, create new from input, or null
+      let resolvedStudySetId: string | null = (studySetId && studySetId !== '__new__') ? studySetId : null
+      if (studySetId === '__new__' && studySetInput.trim() && resolvedTopicId) {
+        const newSet = await createStudySet(resolvedTopicId, studySetInput.trim(), [])
+        resolvedStudySetId = newSet.id
+      }
+
       let created: import('../../types/domain').LearningAsset[]
       if (activeTab === 'panopto') {
         created = await startUpload(
@@ -109,7 +119,7 @@ export function AddAssetModal({
             title: v.title,
             type: 'panopto' as const,
             topicId: resolvedTopicId ?? '',
-            studySetId: studySetId || null,
+            studySetId: resolvedStudySetId || null,
             sourceLabel: 'Panopto',
             originalUrl: `https://panopto.example.com/video/${v.id}`,
             durationMinutes: parseDuration(v.duration),
@@ -126,7 +136,7 @@ export function AddAssetModal({
               ? ('video' as const)
               : ('document' as const),
             topicId: resolvedTopicId ?? '',
-            studySetId: studySetId || null,
+            studySetId: resolvedStudySetId || null,
             sourceLabel: 'Upload',
             originalUrl: '',
           })),
@@ -150,6 +160,7 @@ export function AddAssetModal({
     topicId,
     topicInput,
     studySetId,
+    studySetInput,
     toast,
     onAdded,
     onClose,
@@ -216,7 +227,7 @@ export function AddAssetModal({
         </div>}
 
         {/* Study Set selector (optional, shown when topic selected) */}
-        {topicId && (
+        {topicId && topicId !== '__new__' && (
           <div>
             <label
               htmlFor="asset-studyset"
@@ -227,7 +238,10 @@ export function AddAssetModal({
             <select
               id="asset-studyset"
               value={studySetId}
-              onChange={(e) => setStudySetId(e.target.value)}
+              onChange={(e) => {
+                setStudySetId(e.target.value)
+                setStudySetInput('')
+              }}
               className="w-full rounded-lg border border-border bg-background py-2 pl-3 text-sm text-text-primary outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
             >
               <option value="">None</option>
@@ -236,7 +250,18 @@ export function AddAssetModal({
                   {ss.name}
                 </option>
               ))}
+              <option value="__new__">+ Create new study set...</option>
             </select>
+            {studySetId === '__new__' && (
+              <input
+                type="text"
+                value={studySetInput}
+                onChange={(e) => setStudySetInput(e.target.value)}
+                placeholder="e.g., Week 1 Readings"
+                autoFocus
+                className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            )}
           </div>
         )}
 

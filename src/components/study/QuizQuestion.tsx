@@ -28,6 +28,8 @@ export function QuizQuestion({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isAnswered, onSelect])
 
+  const isCorrect = isAnswered && selectedIndex === question.correctIndex
+
   function getOptionClasses(index: number): string {
     const base =
       'flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
@@ -39,20 +41,24 @@ export function QuizQuestion({
       return `${base} border-border bg-white text-text-primary hover:bg-surface cursor-pointer`
     }
 
-    // Answered states
-    if (index === question.correctIndex) {
+    // Answered: correct — show green on correct answer
+    if (isCorrect && index === question.correctIndex) {
       return `${base} border-green-500 bg-green-50 text-text-primary`
     }
-    if (selectedIndex === index && index !== question.correctIndex) {
+
+    // Answered: wrong — only highlight the selected wrong answer in red, don't reveal correct
+    if (!isCorrect && selectedIndex === index) {
       return `${base} border-red-400 bg-red-50 text-text-primary`
     }
+
     return `${base} border-border bg-white text-text-disabled opacity-60`
   }
 
   function getOptionIcon(index: number) {
     if (!isAnswered) return null
 
-    if (index === question.correctIndex) {
+    // Correct answer: only show checkmark if user got it right
+    if (isCorrect && index === question.correctIndex) {
       return (
         <svg
           className="mt-0.5 h-4 w-4 shrink-0 text-green-600"
@@ -71,7 +77,8 @@ export function QuizQuestion({
       )
     }
 
-    if (selectedIndex === index) {
+    // Wrong answer: show X on the selected wrong option
+    if (!isCorrect && selectedIndex === index) {
       return (
         <svg
           className="mt-0.5 h-4 w-4 shrink-0 text-red-500"
@@ -121,7 +128,7 @@ export function QuizQuestion({
         ))}
       </div>
 
-      {isAnswered && (
+      {isAnswered && isCorrect && (
         <div className="rounded-lg border border-border bg-surface px-4 py-3">
           <p className="text-sm font-medium text-text-primary">Explanation</p>
           <p className="mt-1 text-sm text-text-secondary">

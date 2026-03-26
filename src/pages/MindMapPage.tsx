@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { usePageTitle } from '../hooks/usePageTitle'
 import type { MindMap, MindMapNode, KnowledgeTouchpoint } from '../types/domain'
-import { getMindMap, regenerateMindMap, getAssetDetail } from '../services/mockApi'
+import { getMindMap, getAssetDetail } from '../services/mockApi'
+import { getKTPerformance, computeNeedsReview } from '../utils/ktPerformance'
 import { Button } from '../components/ui/Button'
 import { MindMapViewer } from '../components/study/MindMapViewer'
-import { RegenerateModal } from '../components/study/RegenerateModal'
+import { AiChatFab } from '../components/chat/AiChatFab'
+import { AiChatPanel } from '../components/chat/AiChatPanel'
 import { useToast } from '../context/ToastContext'
 
 export default function MindMapPage() {
@@ -16,8 +18,7 @@ export default function MindMapPage() {
   const [mindMap, setMindMap] = useState<MindMap | null>(null)
   usePageTitle(mindMap ? `Mind Map — ${mindMap.title}` : 'Mind Map')
   const [loading, setLoading] = useState(true)
-  const [confirmRegenerate, setConfirmRegenerate] = useState(false)
-  const [regenerating, setRegenerating] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
 
   // Side panel state
   const [selectedNode, setSelectedNode] = useState<MindMapNode | null>(null)
@@ -70,10 +71,36 @@ export default function MindMapPage() {
         }
 
         if (assetId) {
-          const asset = await getAssetDetail(assetId)
-          const kt = asset.knowledgeTouchpoints.find(
-            (k) => k.id === node.ktId,
-          )
+          try {
+            const asset = await getAssetDetail(assetId)
+            const kt = asset.knowledgeTouchpoints.find(
+              (k) => k.id === node.ktId,
+            )
+            if (kt) {
+              setKtDetail(kt)
+              setLoadingKt(false)
+              return
+            }
+          } catch {
+            // Asset may not be found — fall through to broad search
+          }
+          // Fallback: search via getKTsForAssets
+          const { getKTsForAssets } = await import('../services/mockApi')
+          const kts = getKTsForAssets([assetId])
+          const kt = kts.find((k) => k.id === node.ktId)
+          if (kt) {
+            setKtDetail(kt)
+          }
+        } else {
+          // Topic or studyset scope — search all assets for the KT
+          const { getKTsForTopic, getKTsForStudySet } = await import('../services/mockApi')
+          let kts: import('../types/domain').KnowledgeTouchpoint[] = []
+          if (mindMap.scope.level === 'topic') {
+            kts = getKTsForTopic(mindMap.scope.topicId)
+          } else if (mindMap.scope.level === 'studyset') {
+            kts = getKTsForStudySet(mindMap.scope.studySetId)
+          }
+          const kt = kts.find((k) => k.id === node.ktId)
           if (kt) {
             setKtDetail(kt)
           }
@@ -86,27 +113,6 @@ export default function MindMapPage() {
     },
     [mindMap, toast],
   )
-
-  /* ---------------------------------------------------------------- */
-  /*  Regenerate                                                       */
-  /* ---------------------------------------------------------------- */
-
-  async function handleRegenerate(ktIds?: string[]) {
-    if (!mindmapId) return
-    setConfirmRegenerate(false)
-    try {
-      setRegenerating(true)
-      const newMm = await regenerateMindMap(mindmapId, ktIds)
-      setMindMap(newMm)
-      setSelectedNode(null)
-      setKtDetail(null)
-      toast.success('Mind map regenerated!')
-    } catch {
-      toast.error('Failed to regenerate mind map')
-    } finally {
-      setRegenerating(false)
-    }
-  }
 
   /* ---------------------------------------------------------------- */
   /*  Export mock                                                       */
@@ -143,6 +149,16 @@ export default function MindMapPage() {
   /*  Loading state                                                    */
   /* ---------------------------------------------------------------- */
 
+  // Check if any nodes need review
+  const hasReviewNodes = useMemo(() => {
+    if (!mindMap) return false
+    return mindMap.nodes.some((node) => {
+      if (!node.ktId) return false
+      const record = getKTPerformance(node.ktId)
+      return computeNeedsReview(record)
+    })
+  }, [mindMap])
+
   if (loading || !mindMap) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -161,7 +177,8 @@ export default function MindMapPage() {
   /* ---------------------------------------------------------------- */
 
   return (
-    <main className="flex h-screen w-full flex-col bg-background">
+    <div className="flex h-screen">
+    <main className="flex flex-1 flex-col overflow-hidden bg-background">
       {/* Header */}
       <header className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <button
@@ -178,17 +195,14 @@ export default function MindMapPage() {
           {mindMap.title}
         </h1>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {hasReviewNodes && (
+            <span className="flex items-center gap-1.5 rounded-full border border-[#FDE68A] bg-[#FEF3C7] px-3 py-1 text-xs font-semibold text-[#92400E]">
+              <span>⚠</span> Needs more practice
+            </span>
+          )}
           <Button variant="secondary" size="sm" onClick={handleExport}>
             Export as PNG
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            isLoading={regenerating}
-            onClick={() => setConfirmRegenerate(true)}
-          >
-            Regenerate
           </Button>
         </div>
       </header>
@@ -320,17 +334,14 @@ export default function MindMapPage() {
         )}
       </div>
 
-      {/* Regenerate modal with content picker */}
-      {mindMap && (
-        <RegenerateModal
-          isOpen={confirmRegenerate}
-          onClose={() => setConfirmRegenerate(false)}
-          onConfirm={handleRegenerate}
-          title="Regenerate Mind Map"
-          scope={mindMap.scope}
-          isLoading={regenerating}
-        />
-      )}
     </main>
+    {!chatOpen && <AiChatFab onClick={() => setChatOpen(true)} />}
+    <AiChatPanel
+      isOpen={chatOpen}
+      onClose={() => setChatOpen(false)}
+      assetTitle={mindMap.title}
+      knowledgeTouchpoints={[]}
+    />
+    </div>
   )
 }

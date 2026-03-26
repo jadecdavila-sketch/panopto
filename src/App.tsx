@@ -68,7 +68,7 @@ const router = createHashRouter([
   },
   /* Full-screen routes (no AppLayout) */
   {
-    path: "/flashcards/:setId/session",
+    path: "/study/flashcards",
     element: (
       <Lazy>
         <FlashcardSessionPage />
@@ -76,7 +76,7 @@ const router = createHashRouter([
     ),
   },
   {
-    path: "/quiz/:quizId/session",
+    path: "/study/quiz",
     element: (
       <Lazy>
         <QuizSessionPage />

@@ -1,156 +1,171 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { usePageTitle } from '../hooks/usePageTitle'
-import type { FlashcardSet, Flashcard, FlashcardSession } from '../types/domain'
+import type { Flashcard, KnowledgeTouchpoint } from '../types/domain'
 import {
-  getFlashcardSet,
-  getFlashcardSessions,
-  saveFlashcardSession,
-  regenerateFlashcardSet,
+  generateFlashcardFromKT,
+  getKTsForTopic,
+  getKTsForStudySet,
+  getKTsForAssets,
 } from '../services/mockApi'
+import { selectAdaptiveKTs } from '../utils/adaptiveSelection'
+import {
+  getKTPerformance,
+  updateKTPerformance,
+  batchUpdateConfidence,
+} from '../utils/ktPerformance'
 import { Button } from '../components/ui/Button'
 import { ProgressBar } from '../components/ui/ProgressBar'
 import { CircularGauge } from '../components/ui/CircularGauge'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { FlashcardCard } from '../components/study/FlashcardCard'
 import { ConfidenceCheckIn } from '../components/study/ConfidenceCheckIn'
-import { ReflectionPrompt } from '../components/study/ReflectionPrompt'
-import { RegenerateModal } from '../components/study/RegenerateModal'
-import { useToast } from '../context/ToastContext'
+import { AiChatFab } from '../components/chat/AiChatFab'
+import { AiChatPanel } from '../components/chat/AiChatPanel'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-type SessionPhase = 'pre' | 'studying' | 'results'
-type SubsetOption = 'all' | 5 | 10 | 15 | 20
+type SessionPhase = 'studying' | 'results'
 
-interface CardResult {
-  cardId: string
-  correct: boolean
-}
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-/** Fisher-Yates shuffle (returns new array) */
-function shuffle<T>(arr: T[]): T[] {
-  const copy = [...arr]
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[copy[i], copy[j]] = [copy[j], copy[i]]
-  }
-  return copy
+interface AdaptiveCard extends Flashcard {
+  ktId: string
 }
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
-export default function FlashcardSessionPage() {
-  const { setId } = useParams<{ setId: string }>()
-  const navigate = useNavigate()
-  const toast = useToast()
+const BATCH_SIZE = 10
 
-  // --- Data loading ---
-  const [flashcardSet, setFlashcardSet] = useState<FlashcardSet | null>(null)
-  usePageTitle(flashcardSet ? `Flashcards — ${flashcardSet.title}` : 'Flashcards')
-  const [pastSessions, setPastSessions] = useState<FlashcardSession[]>([])
+export default function FlashcardSessionPage() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  usePageTitle('Flashcards')
+
+  // Parse scope from URL search params
+  const scopeLevel = searchParams.get('scope') as string
+  const topicId = searchParams.get('topicId')
+  const studySetId = searchParams.get('studySetId')
+  const assetId = searchParams.get('assetId')
+  const ktId = searchParams.get('ktId')
+  const assetIdsParam = searchParams.get('assetIds') // comma-separated, from content picker
+  const returnTo = searchParams.get('returnTo') ?? '/'
+
+  // --- Session state ---
+  const [phase, setPhase] = useState<SessionPhase>('studying')
+  const [studyCards, setStudyCards] = useState<AdaptiveCard[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isFlipped, setIsFlipped] = useState(false)
+  const [batchResults, setBatchResults] = useState<{ ktId: string; correct: boolean }[]>([])
+  const [showEndConfirm, setShowEndConfirm] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // --- Pre-session config ---
-  const [subsetOption, setSubsetOption] = useState<SubsetOption>('all')
-  const [shouldShuffle, setShouldShuffle] = useState(true)
-
-  // --- Session state ---
-  const [phase, setPhase] = useState<SessionPhase>('pre')
-  const [studyCards, setStudyCards] = useState<Flashcard[]>([])
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [isFlipped, setIsFlipped] = useState(false)
-  const [results, setResults] = useState<CardResult[]>([])
-  const [showEndConfirm, setShowEndConfirm] = useState(false)
-  const [showRegenConfirm, setShowRegenConfirm] = useState(false)
-  const [isRegenerating, setIsRegenerating] = useState(false)
+  // --- Keep-going loop state ---
+  const [allSeenKtIds, setAllSeenKtIds] = useState<string[]>([])
+  const [totalStudiedThisSitting, setTotalStudiedThisSitting] = useState(0)
+  const [roundNumber, setRoundNumber] = useState(1)
 
   // --- Results state ---
-  const [showCelebration, setShowCelebration] = useState(true)
+  const [showCelebration, setShowCelebration] = useState(false)
   const [confidenceRating, setConfidenceRating] = useState<number | null>(null)
-  const [reflectionDone, setReflectionDone] = useState(false)
   const [missedExpanded, setMissedExpanded] = useState(false)
-  const [savedSession, setSavedSession] = useState(false)
+
+  // --- Chat state (closed by default) ---
+  const [chatOpen, setChatOpen] = useState(false)
+
+  // KT pool reference
+  const ktPoolRef = useRef<KnowledgeTouchpoint[]>([])
 
   // Ref to prevent double-grading
   const gradingRef = useRef(false)
 
-  // --- Load data ---
+  // --- Resolve KT pool and start first batch ---
   useEffect(() => {
-    if (!setId) return
-    let cancelled = false
+    try {
+      let kts: KnowledgeTouchpoint[] = []
 
-    async function load() {
-      try {
-        const [set, sessions] = await Promise.all([
-          getFlashcardSet(setId!),
-          getFlashcardSessions(setId!),
-        ])
-        if (cancelled) return
-        setFlashcardSet(set)
-        setPastSessions(sessions)
-      } catch (err) {
-        if (cancelled) return
-        setError(err instanceof Error ? err.message : 'Failed to load flashcard set')
-      } finally {
-        if (!cancelled) setLoading(false)
+      if (assetIdsParam) {
+        // Content picker: scoped to selected assets
+        kts = getKTsForAssets(assetIdsParam.split(','))
+      } else if (scopeLevel === 'topic' && topicId) {
+        kts = getKTsForTopic(topicId)
+      } else if (scopeLevel === 'studyset' && studySetId) {
+        kts = getKTsForStudySet(studySetId)
+      } else if (scopeLevel === 'asset' && assetId) {
+        kts = getKTsForAssets([assetId])
+      } else if (scopeLevel === 'kt' && ktId && assetId) {
+        const allKts = getKTsForAssets([assetId])
+        kts = allKts.filter((k) => k.id === ktId)
       }
-    }
 
-    load()
-    return () => { cancelled = true }
-  }, [setId])
+      if (kts.length === 0) {
+        setError('No knowledge touchpoints available for this scope.')
+        setLoading(false)
+        return
+      }
+
+      ktPoolRef.current = kts
+      const pool = kts.map((k) => k.id)
+      const selected = selectAdaptiveKTs(pool, 'flashcard', BATCH_SIZE)
+      const cards = generateCardsForKTs(kts, selected)
+
+      setStudyCards(cards)
+      setAllSeenKtIds(selected)
+      setLoading(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start session')
+      setLoading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // --- Celebration timer ---
   useEffect(() => {
     if (phase !== 'results') return
+    setShowCelebration(true)
     const timer = setTimeout(() => setShowCelebration(false), 1000)
     return () => clearTimeout(timer)
   }, [phase])
 
-  // --- Save session when results phase begins ---
-  useEffect(() => {
-    if (phase !== 'results' || savedSession || !flashcardSet || results.length === 0) return
-
-    const correct = results.filter((r) => r.correct).length
-    const accuracy = correct / results.length
-
-    saveFlashcardSession({
-      setId: flashcardSet.id,
-      scope: flashcardSet.scope,
-      completedAt: new Date().toISOString(),
-      accuracy,
-      cardResults: results,
-    }).then(() => {
-      setSavedSession(true)
-    }).catch(() => {
-      toast.error('Failed to save session results')
+  // --- Generate cards from selected KT IDs ---
+  function generateCardsForKTs(
+    kts: KnowledgeTouchpoint[],
+    selectedIds: string[],
+  ): AdaptiveCard[] {
+    const ktMap = new Map(kts.map((k) => [k.id, k]))
+    return selectedIds.map((id) => {
+      const kt = ktMap.get(id)!
+      const record = getKTPerformance(id, kt.assetId)
+      const card = generateFlashcardFromKT(kt, record.flashcardAttempts)
+      return { ...card, ktId: id }
     })
-  }, [phase, savedSession, flashcardSet, results, toast])
+  }
 
-  // --- Keyboard shortcuts ---
+  // --- Grade a card ---
   const handleGrade = useCallback(
     (correct: boolean) => {
       if (!isFlipped || gradingRef.current) return
       gradingRef.current = true
 
       const card = studyCards[currentIndex]
-      setResults((prev) => [...prev, { cardId: card.id, correct }])
+      const kt = ktPoolRef.current.find((k) => k.id === card.ktId)
+
+      // Update KT performance immediately
+      updateKTPerformance(card.ktId, {
+        modality: 'flashcard',
+        correct,
+        assetId: kt?.assetId,
+      })
+
+      setBatchResults((prev) => [...prev, { ktId: card.ktId, correct }])
 
       setTimeout(() => {
         const nextIdx = currentIndex + 1
         if (nextIdx >= studyCards.length) {
           setPhase('results')
-          setShowCelebration(true)
         } else {
           setCurrentIndex(nextIdx)
           setIsFlipped(false)
@@ -161,17 +176,15 @@ export default function FlashcardSessionPage() {
     [isFlipped, currentIndex, studyCards],
   )
 
+  // --- Keyboard shortcuts ---
   useEffect(() => {
     if (phase !== 'studying') return
 
     function handleKeyDown(e: KeyboardEvent) {
-      // Don't handle if user is typing in an input
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
-      ) {
-        return
-      }
+      ) return
 
       switch (e.key) {
         case ' ':
@@ -202,86 +215,56 @@ export default function FlashcardSessionPage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [phase, isFlipped, handleGrade])
 
-  // --- Actions ---
-  function startSession() {
-    if (!flashcardSet) return
+  // --- Keep going ---
+  function handleKeepGoing() {
+    const kts = ktPoolRef.current
+    const pool = kts.map((k) => k.id)
+    const selected = selectAdaptiveKTs(pool, 'flashcard', BATCH_SIZE, allSeenKtIds)
+    const cards = generateCardsForKTs(kts, selected)
 
-    let cards = [...flashcardSet.cards]
-    if (shouldShuffle) cards = shuffle(cards)
-    if (subsetOption !== 'all') cards = cards.slice(0, subsetOption)
-
+    setTotalStudiedThisSitting((prev) => prev + batchResults.length)
+    setAllSeenKtIds((prev) => [...prev, ...selected])
     setStudyCards(cards)
     setCurrentIndex(0)
     setIsFlipped(false)
-    setResults([])
-    setSavedSession(false)
+    setBatchResults([])
     setConfidenceRating(null)
-    setReflectionDone(false)
     setMissedExpanded(false)
+    setRoundNumber((r) => r + 1)
     setPhase('studying')
   }
 
+  // --- Done ---
+  function handleDone() {
+    navigate(returnTo)
+  }
+
+  // --- End early ---
   function endSession() {
-    if (results.length > 0) {
+    if (batchResults.length > 0) {
       setPhase('results')
-      setShowCelebration(true)
     } else {
-      setPhase('pre')
+      navigate(returnTo)
     }
   }
 
-  async function handleRegenerate(ktIds?: string[]) {
-    if (!setId) return
-    setShowRegenConfirm(false)
-    setIsRegenerating(true)
-    try {
-      const newSet = await regenerateFlashcardSet(setId, ktIds)
-      setFlashcardSet(newSet)
-      setPhase('pre')
-      toast.success('Flashcard set regenerated')
-    } catch {
-      toast.error('Failed to regenerate flashcard set')
-    } finally {
-      setIsRegenerating(false)
-    }
-  }
-
+  // --- Confidence ---
   function handleConfidenceRate(rating: number) {
     setConfidenceRating(rating)
-  }
-
-  function handleReflectionSubmit(text: string) {
-    setReflectionDone(true)
-    // Update saved session with confidence + reflection
-    if (flashcardSet && savedSession) {
-      const correct = results.filter((r) => r.correct).length
-      const accuracy = correct / results.length
-      saveFlashcardSession({
-        setId: flashcardSet.id,
-        scope: flashcardSet.scope,
-        completedAt: new Date().toISOString(),
-        accuracy,
-        cardResults: results,
-        confidenceRating: confidenceRating ?? undefined,
-        reflection: text,
-      }).catch(() => {
-        // Session already saved; this is a best-effort update
-      })
-    }
+    const ktIds = batchResults.map((r) => r.ktId)
+    batchUpdateConfidence(ktIds, rating)
   }
 
   // --- Derived values ---
-  const correctCount = results.filter((r) => r.correct).length
-  const incorrectCount = results.filter((r) => !r.correct).length
-  const accuracy = results.length > 0 ? Math.round((correctCount / results.length) * 100) : 0
-  const previousAccuracy = pastSessions.length > 0
-    ? Math.round(pastSessions[pastSessions.length - 1].accuracy * 100)
-    : null
+  const correctCount = batchResults.filter((r) => r.correct).length
+  const incorrectCount = batchResults.filter((r) => !r.correct).length
+  const accuracy = batchResults.length > 0 ? Math.round((correctCount / batchResults.length) * 100) : 0
+  const totalThisSitting = totalStudiedThisSitting + batchResults.length
 
-  const missedCards = results
+  const missedKtIds = batchResults
     .filter((r) => !r.correct)
-    .map((r) => studyCards.find((c) => c.id === r.cardId))
-    .filter(Boolean) as Flashcard[]
+    .map((r) => r.ktId)
+  const missedKTs = ktPoolRef.current.filter((k) => missedKtIds.includes(k.id))
 
   // --- Loading ---
   if (loading) {
@@ -292,35 +275,24 @@ export default function FlashcardSessionPage() {
             className="h-8 w-8 animate-spin text-primary"
             viewBox="0 0 24 24"
             fill="none"
-            aria-label="Loading flashcard set"
+            aria-label="Loading flashcards"
           >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-            />
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
           </svg>
-          <p className="text-sm text-text-secondary">Loading flashcards...</p>
+          <p className="text-sm text-text-secondary">Preparing flashcards...</p>
         </div>
       </main>
     )
   }
 
   // --- Error ---
-  if (error || !flashcardSet) {
+  if (error) {
     return (
       <main className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <p className="text-sm text-status-failed">{error ?? 'Flashcard set not found'}</p>
-          <Button variant="secondary" onClick={() => navigate(-1)} aria-label="Go back">
+          <p className="text-sm text-status-failed">{error}</p>
+          <Button variant="secondary" onClick={() => navigate(returnTo)} aria-label="Go back">
             Go back
           </Button>
         </div>
@@ -328,108 +300,14 @@ export default function FlashcardSessionPage() {
     )
   }
 
-  // --- Pre-session screen ---
-  if (phase === 'pre') {
-    return (
-      <main className="flex min-h-screen flex-col bg-background">
-        {/* Header */}
-        <header className="flex items-center justify-between border-b border-border px-4 py-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-text-secondary hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            aria-label="Close"
-          >
-            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </button>
-          <span className="text-sm font-semibold text-text-primary">{flashcardSet.title}</span>
-          <div className="w-8" />
-        </header>
-
-        <div className="flex flex-1 flex-col items-center justify-center px-4">
-          <div className="flex w-full max-w-md flex-col items-center gap-6">
-            <p className="text-sm text-text-secondary">
-              {flashcardSet.cards.length} cards available
-            </p>
-
-            {/* Subset option */}
-            <div className="flex w-full flex-col gap-2">
-              <label className="text-sm font-medium text-text-primary">
-                Cards to study
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {(['all', 5, 10, 15, 20] as SubsetOption[]).map((opt) => (
-                  <button
-                    key={opt}
-                    onClick={() => setSubsetOption(opt)}
-                    disabled={opt !== 'all' && opt > flashcardSet.cards.length}
-                    aria-label={opt === 'all' ? 'Study all cards' : `Study ${opt} cards`}
-                    className={[
-                      'rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
-                      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-                      'disabled:opacity-40 disabled:cursor-not-allowed',
-                      subsetOption === opt
-                        ? 'bg-primary text-[#1A1A1A]'
-                        : 'border border-border bg-surface text-text-primary hover:bg-primary-tint',
-                    ].join(' ')}
-                  >
-                    {opt === 'all' ? 'Study all' : opt}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Shuffle toggle */}
-            <label className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-border bg-surface px-4 py-3">
-              <span className="text-sm font-medium text-text-primary">Shuffle cards</span>
-              <input
-                type="checkbox"
-                checked={shouldShuffle}
-                onChange={(e) => setShouldShuffle(e.target.checked)}
-                className="h-4 w-4 accent-primary"
-                aria-label="Toggle card shuffling"
-              />
-            </label>
-
-            <Button size="lg" onClick={startSession} aria-label="Start study session">
-              Start
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowRegenConfirm(true)}
-              isLoading={isRegenerating}
-              aria-label="Regenerate flashcard set"
-            >
-              Regenerate flashcards
-            </Button>
-          </div>
-        </div>
-
-        {/* Regenerate modal with content picker */}
-        {flashcardSet && (
-          <RegenerateModal
-            isOpen={showRegenConfirm}
-            onClose={() => setShowRegenConfirm(false)}
-            onConfirm={handleRegenerate}
-            title="Regenerate flashcard set?"
-            scope={flashcardSet.scope}
-            isLoading={isRegenerating}
-          />
-        )}
-      </main>
-    )
-  }
-
   // --- Study session ---
   if (phase === 'studying') {
     const currentCard = studyCards[currentIndex]
-    const progress = ((currentIndex) / studyCards.length) * 100
+    const progress = (currentIndex / studyCards.length) * 100
 
     return (
-      <main className="flex min-h-screen flex-col bg-background">
-        {/* Header bar */}
+      <div className="flex h-screen">
+      <main className="flex flex-1 flex-col overflow-y-auto bg-background">
         <header className="flex items-center justify-between border-b border-border px-4 py-3">
           <button
             onClick={() => setShowEndConfirm(true)}
@@ -441,9 +319,16 @@ export default function FlashcardSessionPage() {
             </svg>
           </button>
 
-          <span className="text-sm font-medium text-text-primary">
-            Card {currentIndex + 1} of {studyCards.length}
-          </span>
+          <div className="flex flex-col items-center">
+            <span className="text-sm font-medium text-text-primary">
+              Card {currentIndex + 1} of {studyCards.length}
+            </span>
+            {roundNumber > 1 && (
+              <span className="text-xs text-text-secondary">
+                {totalStudiedThisSitting + currentIndex + 1} concepts studied this session
+              </span>
+            )}
+          </div>
 
           <Button
             variant="secondary"
@@ -455,12 +340,10 @@ export default function FlashcardSessionPage() {
           </Button>
         </header>
 
-        {/* Progress bar */}
         <div className="px-4 py-2">
           <ProgressBar value={progress} />
         </div>
 
-        {/* Card area */}
         <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4">
           <FlashcardCard
             front={currentCard.front}
@@ -471,7 +354,6 @@ export default function FlashcardSessionPage() {
             }}
           />
 
-          {/* Grade buttons - visible only after flip */}
           <div
             className={[
               'flex gap-4 transition-opacity duration-200',
@@ -497,7 +379,6 @@ export default function FlashcardSessionPage() {
             </Button>
           </div>
 
-          {/* Keyboard hint */}
           {!isFlipped && (
             <p className="text-xs text-text-secondary">
               Press <kbd className="rounded border border-border px-1.5 py-0.5 text-xs font-mono">Space</kbd> to flip
@@ -505,7 +386,6 @@ export default function FlashcardSessionPage() {
           )}
         </div>
 
-        {/* End session confirm */}
         <ConfirmDialog
           isOpen={showEndConfirm}
           onClose={() => setShowEndConfirm(false)}
@@ -515,17 +395,25 @@ export default function FlashcardSessionPage() {
           confirmLabel="End Session"
           cancelLabel="Continue"
         />
+
       </main>
+      {!chatOpen && <AiChatFab onClick={() => setChatOpen(true)} />}
+      <AiChatPanel
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+        assetTitle="Flashcards"
+        knowledgeTouchpoints={ktPoolRef.current}
+      />
+      </div>
     )
   }
 
   // --- Results screen ---
   return (
     <main className="flex min-h-screen flex-col bg-background">
-      {/* Header */}
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleDone}
           className="flex h-8 w-8 items-center justify-center rounded-full text-text-secondary hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           aria-label="Close"
         >
@@ -537,16 +425,10 @@ export default function FlashcardSessionPage() {
         <div className="w-8" />
       </header>
 
-      {/* Celebration overlay */}
       {showCelebration && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
           <div className="animate-bounce">
-            <svg
-              className="h-24 w-24 text-status-ready"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-label="Session complete"
-            >
+            <svg className="h-24 w-24 text-status-ready" viewBox="0 0 24 24" fill="none" aria-label="Session complete">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
               <path d="M8 12l2.5 2.5L16 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -554,112 +436,88 @@ export default function FlashcardSessionPage() {
         </div>
       )}
 
-      <div className="mx-auto flex w-full max-w-lg flex-col items-center gap-8 px-4 py-8">
-
-        {/* Accuracy gauge */}
-        <CircularGauge value={accuracy} size={140} label="Accuracy" />
-
-        {/* Breakdown */}
-        <div className="flex gap-8">
-          <div className="flex flex-col items-center">
-            <span className="text-2xl font-bold text-status-ready">{correctCount}</span>
-            <span className="text-xs text-text-secondary">Correct</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-2xl font-bold text-status-failed">{incorrectCount}</span>
-            <span className="text-xs text-text-secondary">Incorrect</span>
+      <div className="mx-auto flex w-full max-w-lg flex-col items-center px-4 py-8">
+        {/* Accuracy ring + stats row */}
+        <div className="flex w-full items-center gap-7 rounded-xl border border-border p-6">
+          <CircularGauge value={accuracy} size={100} label="Accuracy" />
+          <div className="flex flex-1 flex-col divide-y divide-border">
+            <div className="flex items-center justify-between py-2">
+              <span className="text-sm text-text-secondary">Got it</span>
+              <span className="text-sm font-bold text-status-ready">{correctCount} cards</span>
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <span className="text-sm text-text-secondary">Missed</span>
+              <span className="text-sm font-bold text-status-failed">{incorrectCount} cards</span>
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <span className="text-sm text-text-secondary">Confidence</span>
+              {confidenceRating !== null && confidenceRating > 0 ? (
+                <span className="text-sm font-bold text-text-primary">
+                  {'★'.repeat(confidenceRating)}{'☆'.repeat(5 - confidenceRating)}
+                </span>
+              ) : (
+                <span className="text-xs text-text-disabled">—</span>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Previous comparison */}
-        <p className="text-sm text-text-secondary">
-          {previousAccuracy !== null
-            ? `Previous session: ${previousAccuracy}%`
-            : 'First session!'}
-        </p>
-
-        {/* Missed cards */}
-        {missedCards.length > 0 && (
-          <div className="w-full">
-            <button
-              onClick={() => setMissedExpanded((v) => !v)}
-              className="flex w-full items-center justify-between rounded-lg border border-border bg-surface px-4 py-3 text-sm font-medium text-text-primary hover:bg-primary-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              aria-expanded={missedExpanded}
-              aria-label={`Missed cards (${missedCards.length})`}
-            >
-              <span>Missed cards ({missedCards.length})</span>
-              <svg
-                className={[
-                  'h-4 w-4 transition-transform',
-                  missedExpanded ? 'rotate-180' : '',
-                ].join(' ')}
-                viewBox="0 0 16 16"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-
-            {missedExpanded && (
-              <ul className="mt-2 flex flex-col gap-2">
-                {missedCards.map((card) => (
-                  <li
-                    key={card.id}
-                    className="rounded-lg border border-border bg-surface px-4 py-3"
-                  >
-                    <p className="text-sm font-medium text-text-primary">{card.front}</p>
-                    <p className="mt-1 text-sm text-text-secondary">{card.back}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
+        {/* Confidence check-in (inline, only if not yet rated) */}
+        {confidenceRating === null && (
+          <div className="mt-6 w-full">
+            <ConfidenceCheckIn
+              onRate={handleConfidenceRate}
+              onSkip={() => setConfidenceRating(0)}
+            />
           </div>
         )}
 
-        {/* Confidence check-in */}
-        {confidenceRating === null && (
-          <ConfidenceCheckIn
-            onRate={handleConfidenceRate}
-            onSkip={() => setConfidenceRating(0)}
-          />
+        {/* Missed KTs as chips */}
+        {missedKTs.length > 0 && (
+          <div className="mt-6 w-full">
+            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-text-secondary">
+              Needs more practice
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {missedKTs.map((kt) => (
+                <span
+                  key={kt.id}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-[#FDE68A] bg-[#FEF3C7] px-2.5 py-1 text-xs font-semibold text-[#92400E]"
+                >
+                  <span>⚠</span> {kt.heading}
+                </span>
+              ))}
+            </div>
+          </div>
         )}
 
-        {/* Reflection prompt (only for confidence >= 3) */}
-        {confidenceRating !== null && confidenceRating >= 3 && !reflectionDone && (
-          <ReflectionPrompt
-            onSubmit={handleReflectionSubmit}
-            onSkip={() => setReflectionDone(true)}
-          />
-        )}
-
-        {/* CTAs */}
-        <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
-          <Button variant="primary" onClick={startSession} aria-label="Study again">
-            Study again
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => setShowRegenConfirm(true)}
-            isLoading={isRegenerating}
-            aria-label="Regenerate flashcard set"
+        {/* Keep going / Done — always visible */}
+        <div className="mt-8 flex w-full flex-col items-center gap-2">
+          <button
+            onClick={handleKeepGoing}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold text-text-primary hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            aria-label="Keep going with 10 more cards"
           >
-            Regenerate set
-          </Button>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M7 1.5v11M7 1.5L4 4.5M7 1.5L10 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Keep going — 10 more
+          </button>
+          <button
+            onClick={handleDone}
+            className="flex w-full items-center justify-center rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-text-secondary hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            aria-label="I'm done for now"
+          >
+            I'm done for now
+          </button>
+          {totalStudiedThisSitting > 0 && (
+            <p className="mt-3 text-center font-mono text-xs text-text-secondary">
+              {totalStudiedThisSitting + batchResults.length} concepts studied this session
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Regenerate modal with content picker */}
-      {flashcardSet && (
-        <RegenerateModal
-          isOpen={showRegenConfirm}
-          onClose={() => setShowRegenConfirm(false)}
-          onConfirm={handleRegenerate}
-          title="Regenerate flashcard set?"
-          scope={flashcardSet.scope}
-          isLoading={isRegenerating}
-        />
-      )}
     </main>
   )
 }
