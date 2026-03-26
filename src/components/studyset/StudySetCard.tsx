@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { DropdownMenu } from '../ui/DropdownMenu'
 import { RenameDialog } from '../ui/RenameDialog'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import type { StudySet } from '../../types/domain'
@@ -20,14 +19,6 @@ function LayersIcon() {
   )
 }
 
-function ThreeDotsIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-      <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
-    </svg>
-  )
-}
-
 export function StudySetCard({
   studySet,
   onRename,
@@ -36,21 +27,6 @@ export function StudySetCard({
   const navigate = useNavigate()
   const [renameOpen, setRenameOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
-
-  const menuItems = [
-    ...(onRename
-      ? [{ label: 'Rename', onClick: () => setRenameOpen(true) }]
-      : []),
-    {
-      label: 'Edit assets',
-      onClick: () => {
-        /* navigate to edit — handled by parent or future link */
-      },
-    },
-    ...(onDelete
-      ? [{ label: 'Delete', onClick: () => setDeleteOpen(true), danger: true }]
-      : []),
-  ]
 
   return (
     <>

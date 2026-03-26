@@ -13,9 +13,6 @@ interface KnowledgeTouchpointCardProps {
   onGenerateFlashcards?: (ktId: string) => void
   onGenerateQuiz?: (ktId: string) => void
   onGenerateMindMap?: (ktId: string) => void
-  onStudyFlashcards?: (setId: string) => void
-  onTakeQuiz?: (quizId: string) => void
-  onViewMindMap?: (mindmapId: string) => void
 }
 
 export function KnowledgeTouchpointCard({
@@ -25,9 +22,6 @@ export function KnowledgeTouchpointCard({
   onGenerateFlashcards,
   onGenerateQuiz,
   onGenerateMindMap,
-  onStudyFlashcards,
-  onTakeQuiz,
-  onViewMindMap,
 }: KnowledgeTouchpointCardProps) {
   const [expanded, setExpanded] = useState(false)
   const [needsTruncation, setNeedsTruncation] = useState(false)

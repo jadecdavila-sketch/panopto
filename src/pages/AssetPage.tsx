@@ -5,13 +5,10 @@ import {
   getAssetDetail,
   getAssetKPIs,
   retryAssetProcessing,
-  listFlashcardSets,
-  listQuizzes,
-  listMindMaps,
   getTopicDetail,
   getStudySetDetail,
 } from '../services/mockApi'
-import type { LearningAsset, AssetKPI, Citation, GenerationScope, FlashcardSet, Quiz, MindMap } from '../types/domain'
+import type { LearningAsset, AssetKPI, Citation, GenerationScope } from '../types/domain'
 import { useProcessingPoller } from '../hooks/useProcessingPoller'
 import { useToast } from '../context/ToastContext'
 import { Layers, ClipboardCheck, Network } from 'lucide-react'
@@ -113,9 +110,6 @@ export default function AssetPage() {
   const [asset, setAsset] = useState<LearningAsset | null>(null)
   usePageTitle(asset?.title ?? 'Asset')
   const [kpis, setKpis] = useState<AssetKPI | null>(null)
-  const [assetFlashcardSets, setAssetFlashcardSets] = useState<FlashcardSet[]>([])
-  const [assetQuizzes, setAssetQuizzes] = useState<Quiz[]>([])
-  const [assetMindMaps, setAssetMindMaps] = useState<MindMap[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -136,19 +130,12 @@ export default function AssetPage() {
     try {
       setLoading(true)
       setError(null)
-      const scope = { level: 'asset' as const, assetId }
-      const [assetData, kpiData, fSets, qList, mList] = await Promise.all([
+      const [assetData, kpiData] = await Promise.all([
         getAssetDetail(assetId),
         getAssetKPIs(assetId),
-        listFlashcardSets(scope),
-        listQuizzes(scope),
-        listMindMaps(scope),
       ])
       setAsset(assetData)
       setKpis(kpiData)
-      setAssetFlashcardSets(fSets)
-      setAssetQuizzes(qList)
-      setAssetMindMaps(mList)
 
       // Fetch breadcrumb names
       const resolvedTopicId = fromTopicId || assetData.topicId
@@ -345,9 +332,6 @@ export default function AssetPage() {
                     kt.heading,
                   )
                 }
-                onStudyFlashcards={(setId) => navigate(`/flashcards/${setId}/session`)}
-                onTakeQuiz={(quizId) => navigate(`/quiz/${quizId}/session`)}
-                onViewMindMap={(mindmapId) => navigate(`/mindmap/${mindmapId}`)}
               />
             ))}
           </div>

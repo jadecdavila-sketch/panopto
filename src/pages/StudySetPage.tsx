@@ -5,18 +5,12 @@ import {
   getStudySetDetail,
   listAssets,
   updateStudySet,
-  listFlashcardSets,
-  listQuizzes,
-  listMindMaps,
 } from '../services/mockApi'
 import type {
   StudySet,
   LearningAsset,
   Citation,
   GenerationScope,
-  FlashcardSet,
-  Quiz,
-  MindMap,
 } from '../types/domain'
 import { Layers, ClipboardCheck, Network } from 'lucide-react'
 import { NotesButton } from '../components/ui/NotesButton'
@@ -175,9 +169,6 @@ export default function StudySetPage() {
   usePageTitle(studySet?.name ?? 'Study Set')
   const [synthesisAsset, setSynthesisAsset] = useState<LearningAsset | null>(null)
   const [setAssets, setSetAssets] = useState<LearningAsset[]>([])
-  const [ssFlashcardSets, setSsFlashcardSets] = useState<FlashcardSet[]>([])
-  const [ssQuizzes, setSsQuizzes] = useState<Quiz[]>([])
-  const [ssMindMaps, setSsMindMaps] = useState<MindMap[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -202,17 +193,6 @@ export default function StudySetPage() {
       const detail = await getStudySetDetail(setId)
       setStudySet(detail.studySet)
       setSynthesisAsset(detail.synthesisAsset)
-
-      // Fetch modalities for this study set
-      const scope = { level: 'studyset' as const, studySetId: setId, topicId: detail.studySet.topicId }
-      const [fSets, qList, mList] = await Promise.all([
-        listFlashcardSets(scope),
-        listQuizzes(scope),
-        listMindMaps(scope),
-      ])
-      setSsFlashcardSets(fSets)
-      setSsQuizzes(qList)
-      setSsMindMaps(mList)
 
       // Fetch full asset objects for the set
       if (detail.studySet.topicId) {
@@ -494,11 +474,6 @@ export default function StudySetPage() {
                       kt.heading,
                     )
                   }
-                  onStudyFlashcards={(setId) =>
-                    navigate(`/flashcards/${setId}/session`)
-                  }
-                  onTakeQuiz={(quizId) => navigate(`/quiz/${quizId}/session`)}
-                  onViewMindMap={(mindmapId) => navigate(`/mindmap/${mindmapId}`)}
                 />
               ))}
             </div>

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AssetBadge, StatusBadge } from '../ui/Badge'
-import { DropdownMenu } from '../ui/DropdownMenu'
 import { RenameDialog } from '../ui/RenameDialog'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import type { LearningAsset, AssetKPI } from '../../types/domain'
@@ -11,7 +10,6 @@ interface AssetCardProps {
   kpis?: AssetKPI
   onRename?: (assetId: string, newTitle: string) => void
   onDelete?: (assetId: string) => void
-  onAddToStudySet?: (assetId: string) => void
 }
 
 const accentColors: Record<LearningAsset['type'], string> = {
@@ -52,14 +50,6 @@ function TypeIcon({ type }: { type: LearningAsset['type'] }) {
   }
 }
 
-function ThreeDotsIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-      <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
-    </svg>
-  )
-}
-
 function formatLastStudied(dateStr: string | null | undefined): string {
   if (!dateStr) return ''
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -74,7 +64,6 @@ export function AssetCard({
   kpis,
   onRename,
   onDelete,
-  onAddToStudySet,
 }: AssetCardProps) {
   const navigate = useNavigate()
   const [renameOpen, setRenameOpen] = useState(false)
@@ -83,17 +72,6 @@ export function AssetCard({
   const isReady = asset.processingStatus === 'ready'
   const hasStudied = kpis && kpis.lastStudiedAt != null
 
-  const menuItems = [
-    ...(onRename
-      ? [{ label: 'Rename', onClick: () => setRenameOpen(true) }]
-      : []),
-    ...(onAddToStudySet
-      ? [{ label: 'Add to Study Set', onClick: () => onAddToStudySet(asset.id) }]
-      : []),
-    ...(onDelete
-      ? [{ label: 'Delete', onClick: () => setDeleteOpen(true), danger: true }]
-      : []),
-  ]
 
   return (
     <>

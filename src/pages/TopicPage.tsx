@@ -31,15 +31,9 @@ import {
   getAssetKPIs,
   renameStudySet,
   deleteStudySet,
-  listFlashcardSets,
-  listQuizzes,
-  listMindMaps,
   listAllFlashcardSetsForTopic,
   listAllQuizzesForTopic,
   listAllMindMapsForTopic,
-  generateFlashcardSet,
-  generateQuiz,
-  generateMindMap,
   getAllFlashcardSessions,
   getAllQuizSessions,
 } from '../services/mockApi'
@@ -148,9 +142,6 @@ export default function TopicPage() {
   const [studySets, setStudySets] = useState<StudySet[]>([])
   const [kpis, setKpis] = useState<TopicKPI | null>(null)
   const [assetKpiMap, setAssetKpiMap] = useState<Record<string, AssetKPI>>({})
-  const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([])
-  const [quizList, setQuizList] = useState<Quiz[]>([])
-  const [mindMapList, setMindMapList] = useState<MindMap[]>([])
   const [allFlashcardSets, setAllFlashcardSets] = useState<FlashcardSet[]>([])
   const [allQuizzes, setAllQuizzes] = useState<Quiz[]>([])
   const [allMindMaps, setAllMindMaps] = useState<MindMap[]>([])
@@ -172,7 +163,6 @@ export default function TopicPage() {
     isOpen: boolean
     modalityType: ModalityType
   }>({ isOpen: false, modalityType: 'flashcards' })
-  const [generating, setGenerating] = useState<ModalityType | null>(null)
 
   // + New dialog state
   const [createTopicOpen, setCreateTopicOpen] = useState(false)
@@ -190,12 +180,9 @@ export default function TopicPage() {
     setError(null)
 
     try {
-      const [detail, topicKpis, fSets, qList, mList, allFS, allQ, allMM] = await Promise.all([
+      const [detail, topicKpis, allFS, allQ, allMM] = await Promise.all([
         getTopicDetail(topicId),
         getTopicKPIs(topicId),
-        listFlashcardSets({ level: 'topic', topicId }),
-        listQuizzes({ level: 'topic', topicId }),
-        listMindMaps({ level: 'topic', topicId }),
         listAllFlashcardSetsForTopic(topicId),
         listAllQuizzesForTopic(topicId),
         listAllMindMapsForTopic(topicId),
@@ -205,9 +192,6 @@ export default function TopicPage() {
       setAssets(detail.assets)
       setStudySets(detail.studySets)
       setKpis(topicKpis)
-      setFlashcardSets(fSets)
-      setQuizList(qList)
-      setMindMapList(mList)
       setAllFlashcardSets(allFS)
       setAllQuizzes(allQ)
       setAllMindMaps(allMM)
@@ -359,31 +343,6 @@ export default function TopicPage() {
     setGenerationModal((prev) => ({ ...prev, isOpen: false }))
   }, [])
 
-  // Generate with defaults and navigate directly
-  const generateAndGo = useCallback(async (modality: ModalityType) => {
-    if (!topicId) return
-    setGenerating(modality)
-    const scope = { level: 'topic' as const, topicId }
-    try {
-      if (modality === 'flashcards') {
-        const set = await generateFlashcardSet(scope)
-        await fetchData()
-        navigate(`/flashcards/${set.id}/session`)
-      } else if (modality === 'quiz') {
-        const quiz = await generateQuiz(scope)
-        await fetchData()
-        navigate(`/quiz/${quiz.id}/session`)
-      } else {
-        const mm = await generateMindMap(scope)
-        await fetchData()
-        navigate(`/mindmap/${mm.id}`)
-      }
-    } catch {
-      toast.error(`Failed to generate ${modality}`)
-    } finally {
-      setGenerating(null)
-    }
-  }, [topicId, fetchData, navigate, toast])
 
   /* ---------------------------------------------------------------- */
   /*  Derived                                                          */
