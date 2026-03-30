@@ -477,35 +477,6 @@ export default function StudySetPage() {
                   kt={kt}
                   citations={citations}
                   onCitationClick={handleCitationClick}
-                  onGenerateFlashcards={(ktId) => {
-                    const params = new URLSearchParams({
-                      scope: 'kt',
-                      ktId,
-                      assetId: synthesisAsset!.id,
-                      returnTo: `/topics/${topicId}/study-sets/${setId}`,
-                    })
-                    navigate(`/study/flashcards?${params.toString()}`)
-                  }}
-                  onGenerateQuiz={(ktId) => {
-                    const params = new URLSearchParams({
-                      scope: 'kt',
-                      ktId,
-                      assetId: synthesisAsset!.id,
-                      returnTo: `/topics/${topicId}/study-sets/${setId}`,
-                    })
-                    navigate(`/study/quiz?${params.toString()}`)
-                  }}
-                  onGenerateMindMap={(ktId) =>
-                    openGenerationModal(
-                      {
-                        level: 'kt',
-                        ktId,
-                        assetId: synthesisAsset!.id,
-                      },
-                      'mindmap',
-                      kt.heading,
-                    )
-                  }
                 />
               ))}
             </div>

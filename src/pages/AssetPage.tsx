@@ -302,8 +302,6 @@ export default function AssetPage() {
   const hasStudied = kpis?.lastStudiedAt != null
   const topicId = fromTopicId || asset.topicId
 
-  const assetScope: GenerationScope = { level: 'asset', assetId: asset.id }
-
   // KT list content
   const ktContent = (
     <>
