@@ -11,7 +11,8 @@ export function getNote(level: NoteLevel, id: string): string {
 }
 
 export function saveNote(level: NoteLevel, id: string, text: string): void {
-  if (text.trim() === '') {
+  const plain = text.replace(/<[^>]*>/g, '').trim()
+  if (plain === '') {
     localStorage.removeItem(getNoteKey(level, id))
   } else {
     localStorage.setItem(getNoteKey(level, id), text)
@@ -20,5 +21,6 @@ export function saveNote(level: NoteLevel, id: string, text: string): void {
 
 export function hasNote(level: NoteLevel, id: string): boolean {
   const val = localStorage.getItem(getNoteKey(level, id))
-  return val !== null && val.trim() !== ''
+  if (val === null) return false
+  return val.replace(/<[^>]*>/g, '').trim() !== ''
 }

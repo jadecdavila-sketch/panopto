@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { PenLine } from 'lucide-react'
 import { Modal } from './Modal'
 import { Button } from './Button'
+import { RichTextEditor } from './RichTextEditor'
 import { getNote, saveNote, type NoteLevel } from '../../utils/notes'
 
 interface NotesModalProps {
@@ -15,15 +16,13 @@ interface NotesModalProps {
 const DEBOUNCE_MS = 500
 
 export function NotesModal({ open, level, id, scopeName, onClose }: NotesModalProps) {
-  const [text, setText] = useState('')
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [html, setHtml] = useState('')
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Load note on open
   useEffect(() => {
     if (open) {
-      setText(getNote(level, id))
-      setTimeout(() => textareaRef.current?.focus(), 100)
+      setHtml(getNote(level, id))
     }
   }, [open, level, id])
 
@@ -44,14 +43,17 @@ export function NotesModal({ open, level, id, scopeName, onClose }: NotesModalPr
       clearTimeout(timerRef.current)
       timerRef.current = null
     }
-    saveNote(level, id, text)
+    saveNote(level, id, html)
     onClose()
   }
 
   function handleChange(value: string) {
-    setText(value)
+    setHtml(value)
     scheduleSave(value)
   }
+
+  // Strip HTML tags for character count
+  const plainLength = html.replace(/<[^>]*>/g, '').length
 
   return (
     <Modal isOpen={open} onClose={handleClose} title="" size="md">
@@ -63,18 +65,18 @@ export function NotesModal({ open, level, id, scopeName, onClose }: NotesModalPr
         </div>
       </div>
 
-      <textarea
-        ref={textareaRef}
-        value={text}
-        onChange={(e) => handleChange(e.target.value)}
-        placeholder="Write anything — questions, connections, things to come back to…"
-        className="mt-4 w-full border-none bg-transparent p-0 text-[15px] leading-relaxed text-text-primary outline-none placeholder:text-text-disabled"
-        style={{ minHeight: 240, resize: 'none' }}
-      />
+      <div className="mt-4">
+        <RichTextEditor
+          value={html}
+          onChange={handleChange}
+          placeholder="Write anything — questions, connections, things to come back to…"
+          autoFocus={open}
+        />
+      </div>
 
       <div className="mt-4 flex items-center justify-between">
         <span className="text-xs text-text-disabled">
-          {text.length} character{text.length !== 1 ? 's' : ''}
+          {plainLength} character{plainLength !== 1 ? 's' : ''}
         </span>
         <Button variant="secondary" size="sm" onClick={handleClose}>
           Done

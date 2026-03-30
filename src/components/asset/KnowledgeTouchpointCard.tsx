@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Layers, ClipboardCheck, Network, Lightbulb, PenLine } from 'lucide-react'
 import type { KnowledgeTouchpoint, Citation } from '../../types/domain'
 import { Button } from '../ui/Button'
+import { RichTextEditor } from '../ui/RichTextEditor'
 import { getNote, saveNote, hasNote } from '../../utils/notes'
 
 const COLLAPSED_HEIGHT = 96 // ~4.5 lines — enough to show faded next sentence
@@ -144,10 +145,9 @@ export function KnowledgeTouchpointCard({
 const NOTE_DEBOUNCE_MS = 500
 
 function KTNote({ ktId }: { ktId: string }) {
-  const [noteText, setNoteText] = useState(() => getNote('kt', ktId))
+  const [noteHtml, setNoteHtml] = useState(() => getNote('kt', ktId))
   const [editing, setEditing] = useState(false)
   const [noteExists, setNoteExists] = useState(() => hasNote('kt', ktId))
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const scheduleSave = useCallback(
@@ -155,20 +155,19 @@ function KTNote({ ktId }: { ktId: string }) {
       if (timerRef.current) clearTimeout(timerRef.current)
       timerRef.current = setTimeout(() => {
         saveNote('kt', ktId, value)
-        setNoteExists(value.trim() !== '')
+        setNoteExists(value.replace(/<[^>]*>/g, '').trim() !== '')
       }, NOTE_DEBOUNCE_MS)
     },
     [ktId],
   )
 
   function handleChange(value: string) {
-    setNoteText(value)
+    setNoteHtml(value)
     scheduleSave(value)
   }
 
   function openEditor() {
     setEditing(true)
-    setTimeout(() => textareaRef.current?.focus(), 50)
   }
 
   function closeEditor() {
@@ -176,10 +175,12 @@ function KTNote({ ktId }: { ktId: string }) {
       clearTimeout(timerRef.current)
       timerRef.current = null
     }
-    saveNote('kt', ktId, noteText)
-    setNoteExists(noteText.trim() !== '')
+    saveNote('kt', ktId, noteHtml)
+    setNoteExists(noteHtml.replace(/<[^>]*>/g, '').trim() !== '')
     setEditing(false)
   }
+
+  const plainPreview = noteHtml.replace(/<[^>]*>/g, '')
 
   // No note, not editing — show "Add note" link
   if (!noteExists && !editing) {
@@ -205,7 +206,7 @@ function KTNote({ ktId }: { ktId: string }) {
           className="flex w-full items-start gap-2 text-left"
         >
           <PenLine className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <p className="flex-1 truncate text-sm text-text-secondary">{noteText}</p>
+          <p className="flex-1 truncate text-sm text-text-secondary">{plainPreview}</p>
         </button>
       </div>
     )
@@ -228,13 +229,14 @@ function KTNote({ ktId }: { ktId: string }) {
           Done
         </button>
       </div>
-      <textarea
-        ref={textareaRef}
-        value={noteText}
-        onChange={(e) => handleChange(e.target.value)}
+      <RichTextEditor
+        value={noteHtml}
+        onChange={handleChange}
         placeholder="Your thoughts on this…"
-        className="w-full rounded-lg border-none bg-[#FAFAFA] px-3 py-2 text-[13px] leading-relaxed text-text-secondary outline-none placeholder:text-text-disabled"
-        style={{ minHeight: 64, maxHeight: 200, resize: 'none' }}
+        minHeight={64}
+        maxHeight={200}
+        compact
+        autoFocus={editing}
       />
     </div>
   )

@@ -143,6 +143,19 @@ select {
   }
 }
 
+/* Rich text editor placeholder */
+.rich-text-editor-body:empty::before {
+  content: attr(data-placeholder);
+  color: var(--color-text-disabled);
+  pointer-events: none;
+}
+
+.rich-text-editor-body ul {
+  list-style: disc;
+  padding-left: 1.5em;
+  margin: 0.25em 0;
+}
+
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *,
