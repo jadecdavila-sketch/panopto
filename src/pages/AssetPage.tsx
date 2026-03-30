@@ -24,6 +24,7 @@ import { OriginalViewer } from '../components/asset/OriginalViewer'
 import { AiChatFab } from '../components/chat/AiChatFab'
 import { AiChatPanel } from '../components/chat/AiChatPanel'
 import { GenerationModal } from '../components/asset/GenerationModal'
+import { KTPickerModal } from '../components/study/KTPickerModal'
 import { NotesButton } from '../components/ui/NotesButton'
 import { DropdownMenu } from '../components/ui/DropdownMenu'
 import { RenameDialog } from '../components/ui/RenameDialog'
@@ -130,6 +131,11 @@ export default function AssetPage() {
   const [genModality, setGenModality] = useState<'flashcards' | 'quiz' | 'mindmap' | null>(null)
   const [genScopeTitle, setGenScopeTitle] = useState('')
 
+  // KT picker state
+  const [ktPickerOpen, setKtPickerOpen] = useState(false)
+  const [ktPickerModality, setKtPickerModality] = useState<'flashcards' | 'quiz' | 'mindmap'>('flashcards')
+  const [ktPickerPreSelected, setKtPickerPreSelected] = useState<string | undefined>()
+
   // Fetch data
   const fetchData = useCallback(async () => {
     if (!assetId) return
@@ -234,6 +240,30 @@ export default function AssetPage() {
     }
   }
 
+  function openKtPicker(modality: 'flashcards' | 'quiz' | 'mindmap', preSelectedKtId?: string) {
+    setKtPickerModality(modality)
+    setKtPickerPreSelected(preSelectedKtId)
+    setKtPickerOpen(true)
+  }
+
+  function handleKtPickerStart(selectedKtIds: string[]) {
+    setKtPickerOpen(false)
+    if (ktPickerModality === 'mindmap') {
+      openGenerationModal(
+        { level: 'asset', assetId: asset!.id, ktIds: selectedKtIds },
+        'mindmap',
+      )
+      return
+    }
+    const params = new URLSearchParams({
+      scope: 'asset',
+      assetId: asset!.id,
+      ktIds: selectedKtIds.join(','),
+      returnTo: `/assets/${asset!.id}`,
+    })
+    navigate(`/study/${ktPickerModality}?${params.toString()}`)
+  }
+
   function handleGenerationSuccess(result: { modalityType: string; id: string }) {
     setGenModalOpen(false)
     fetchData()
@@ -307,31 +337,6 @@ export default function AssetPage() {
                 kt={kt}
                 citations={asset.citations}
                 onCitationClick={handleCitationClick}
-                onGenerateFlashcards={(ktId) => {
-                  const params = new URLSearchParams({
-                    scope: 'kt',
-                    ktId,
-                    assetId: asset.id,
-                    returnTo: `/assets/${asset.id}`,
-                  })
-                  navigate(`/study/flashcards?${params.toString()}`)
-                }}
-                onGenerateQuiz={(ktId) => {
-                  const params = new URLSearchParams({
-                    scope: 'kt',
-                    ktId,
-                    assetId: asset.id,
-                    returnTo: `/assets/${asset.id}`,
-                  })
-                  navigate(`/study/quiz?${params.toString()}`)
-                }}
-                onGenerateMindMap={(ktId) =>
-                  openGenerationModal(
-                    { level: 'kt', ktId, assetId: asset.id },
-                    'mindmap',
-                    kt.heading,
-                  )
-                }
               />
             ))}
           </div>
@@ -484,35 +489,21 @@ export default function AssetPage() {
               <Button
                 variant="secondary"
                 leftIcon={<Layers className="h-4 w-4" />}
-                onClick={() => {
-                  const params = new URLSearchParams({
-                    scope: 'asset',
-                    assetId: asset.id,
-                    returnTo: `/assets/${asset.id}`,
-                  })
-                  navigate(`/study/flashcards?${params.toString()}`)
-                }}
+                onClick={() => openKtPicker('flashcards')}
               >
                 Flashcards
               </Button>
               <Button
                 variant="secondary"
                 leftIcon={<ClipboardCheck className="h-4 w-4" />}
-                onClick={() => {
-                  const params = new URLSearchParams({
-                    scope: 'asset',
-                    assetId: asset.id,
-                    returnTo: `/assets/${asset.id}`,
-                  })
-                  navigate(`/study/quiz?${params.toString()}`)
-                }}
+                onClick={() => openKtPicker('quiz')}
               >
                 Quiz
               </Button>
               <Button
                 variant="secondary"
                 leftIcon={<Network className="h-4 w-4" />}
-                onClick={() => openGenerationModal(assetScope, 'mindmap')}
+                onClick={() => openKtPicker('mindmap')}
               >
                 Mind Map
               </Button>
@@ -554,6 +545,19 @@ export default function AssetPage() {
         confirmLabel="Delete"
         variant="danger"
       />
+
+      {/* KT picker modal */}
+      {ktPickerOpen && asset && (
+        <KTPickerModal
+          isOpen={ktPickerOpen}
+          onClose={() => setKtPickerOpen(false)}
+          assetTitle={asset.title}
+          modality={ktPickerModality}
+          knowledgeTouchpoints={asset.knowledgeTouchpoints}
+          preSelectedKtId={ktPickerPreSelected}
+          onStart={handleKtPickerStart}
+        />
+      )}
 
       {/* Generation modal */}
       {genModalOpen && genScope && genModality && (

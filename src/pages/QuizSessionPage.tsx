@@ -58,6 +58,7 @@ export default function QuizSessionPage() {
   const assetId = searchParams.get('assetId')
   const ktId = searchParams.get('ktId')
   const assetIdsParam = searchParams.get('assetIds')
+  const ktIdsParam = searchParams.get('ktIds') // comma-separated, from KT picker
   const returnTo = searchParams.get('returnTo') ?? '/'
 
   // --- Session state ---
@@ -104,6 +105,10 @@ export default function QuizSessionPage() {
         kts = getKTsForStudySet(studySetId)
       } else if (scopeLevel === 'asset' && assetId) {
         kts = getKTsForAssets([assetId])
+        if (ktIdsParam) {
+          const selectedKtIds = new Set(ktIdsParam.split(','))
+          kts = kts.filter((k) => selectedKtIds.has(k.id))
+        }
       } else if (scopeLevel === 'kt' && ktId && assetId) {
         const allKts = getKTsForAssets([assetId])
         kts = allKts.filter((k) => k.id === ktId)

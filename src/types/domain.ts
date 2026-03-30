@@ -4,7 +4,7 @@ export type ModalityType = 'flashcards' | 'quiz' | 'mindmap'
 
 export type GenerationScope =
   | { level: 'kt'; ktId: string; assetId: string }
-  | { level: 'asset'; assetId: string }
+  | { level: 'asset'; assetId: string; ktIds?: string[] }
   | { level: 'studyset'; studySetId: string; topicId: string }
   | { level: 'topic'; topicId: string }
 

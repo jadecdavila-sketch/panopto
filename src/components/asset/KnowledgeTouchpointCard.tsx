@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Layers, ClipboardCheck, Network, Lightbulb, PenLine } from 'lucide-react'
+import { Lightbulb, PenLine } from 'lucide-react'
 import type { KnowledgeTouchpoint, Citation } from '../../types/domain'
-import { Button } from '../ui/Button'
 import { RichTextEditor } from '../ui/RichTextEditor'
 import { getNote, saveNote, hasNote } from '../../utils/notes'
 
@@ -11,18 +10,12 @@ interface KnowledgeTouchpointCardProps {
   kt: KnowledgeTouchpoint
   citations: Citation[]
   onCitationClick?: (citation: Citation) => void
-  onGenerateFlashcards?: (ktId: string) => void
-  onGenerateQuiz?: (ktId: string) => void
-  onGenerateMindMap?: (ktId: string) => void
 }
 
 export function KnowledgeTouchpointCard({
   kt,
   citations,
   onCitationClick,
-  onGenerateFlashcards,
-  onGenerateQuiz,
-  onGenerateMindMap,
 }: KnowledgeTouchpointCardProps) {
   const [expanded, setExpanded] = useState(false)
   const [needsTruncation, setNeedsTruncation] = useState(false)
@@ -100,34 +93,6 @@ export function KnowledgeTouchpointCard({
             aria-hidden="true"
           />
         )}
-      </div>
-
-      {/* CTA buttons */}
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          leftIcon={<Layers className="h-4 w-4" />}
-          onClick={() => onGenerateFlashcards?.(kt.id)}
-        >
-          Flashcards
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          leftIcon={<ClipboardCheck className="h-4 w-4" />}
-          onClick={() => onGenerateQuiz?.(kt.id)}
-        >
-          Quiz
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          leftIcon={<Network className="h-4 w-4" />}
-          onClick={() => onGenerateMindMap?.(kt.id)}
-        >
-          Mind Map
-        </Button>
       </div>
 
       {/* Inline note annotation */}
